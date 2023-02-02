@@ -1,5 +1,5 @@
 import random
-from MCTS import Mcts
+from mcts import Mcts
 
 # Player to be used in a game, only needs to implement the play method.
 class Player:
