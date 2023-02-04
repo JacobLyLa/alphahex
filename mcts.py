@@ -2,10 +2,11 @@ import random
 import time
 from math import sqrt, log
 import logging
+from neuralnet import getModel
 logging.basicConfig()
 
-# TODO: temp default policy, replace with neural network and continue from previous search
-def rolloutPolicy(game):
+
+def randomRolloutPolicy(game):
     return random.choice(game.getActions())
 
 class Node:
@@ -43,9 +44,10 @@ class Node:
 
 
 class Mcts:
-    def __init__(self, maxIters, maxTime):
+    def __init__(self, maxIters, maxTime, rolloutPolicy=randomRolloutPolicy):
         self.maxIters = maxIters
         self.maxTime = maxTime
+        self.rolloutPolicy = rolloutPolicy
         self.log = logging.getLogger("MCTS")
         self.log.setLevel(logging.INFO)
 
@@ -60,7 +62,7 @@ class Mcts:
 
             node = select(node, gameCopy)
             node = expand(node, gameCopy)
-            reward = rollout(gameCopy)
+            reward = self.rollout(gameCopy)
             backpropagate(node, reward)
 
         if iters != self.maxIters:
@@ -73,6 +75,11 @@ class Mcts:
             self.log.debug(actionNode)
 
         return bestAction
+
+    def rollout(self, gameCopy):
+        while not gameCopy.isTerminal():
+            gameCopy.playAction(self.rolloutPolicy(gameCopy))
+        return gameCopy.getResult()
 
 def select(node, gameCopy):
     while node.untriedActions == [] and node.childNodes != []:
@@ -87,29 +94,21 @@ def expand(node, gameCopy):
         node = node.addChild(gameCopy, action)
     return node
 
-def rollout(gameCopy):
-    while not gameCopy.isTerminal():
-        gameCopy.playAction(rolloutPolicy(gameCopy))
-    return gameCopy.getResult()
-
 def backpropagate(node, reward):
     while node != None:
         node.update(reward)
         node = node.parentNode
 
-# test with nim game
 if __name__ == "__main__":
-    from game import Nim
-    from player import HumanPlayer, MCTSPlayer, RandomPlayer
+    from hex import HexGame
+    from player import RandomPlayer, NeuralNetPlayer, NeuralMCTSPlayer
     from tournament import Tournament
 
-    rounds = 20
-    mctsPlayer = MCTSPlayer(maxIters=100, maxTime=1)
-    tournament = Tournament(Nim, mctsPlayer, RandomPlayer())
+    rounds = 4
+    model = getModel()
+    nnMctsPlayer = NeuralMCTSPlayer(model=model, maxIters=10, maxTime=4)
+    nnPlayer = NeuralNetPlayer(model=model)
+    tournament = Tournament(HexGame, nnMctsPlayer, nnPlayer)
     tournament.run(rounds)
     wins, losses, draws = tournament.getResults()
-    print("MCTS won", wins, "out of", rounds, "games")
-
-    humanPlayer = HumanPlayer()
-    game = Nim(humanPlayer, mctsPlayer)
-    game.playGame()
+    print(f"NN MCTS Player: {wins} wins, {losses} losses, {draws} draws")
