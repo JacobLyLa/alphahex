@@ -4,7 +4,6 @@ class Game:
         self.player1 = player1
         self.player2 = player2
         self.turn = 1
-        self.state = self.createInitialState()
 
     def playGame(self):
         while not self.isTerminal():
@@ -16,10 +15,6 @@ class Game:
 
     # returns 1 if player 1 wins, -1 if player 2 wins, 0 if draw
     def getResult(self):
-        raise NotImplementedError
-
-    # returns the initial state of the game
-    def createInitialState(self):
         raise NotImplementedError
 
     # plays action on the current state, updates the state
@@ -34,25 +29,26 @@ class Game:
     def isTerminal(self):
         raise NotImplementedError
 
+    # copies the game and returns the copy
     def copy(self):
-        selfCopy = self.__class__(self.player1, self.player2) # can be optimized by passing copy=True to __init__
-        selfCopy.turn = self.turn
-        selfCopy.state = self.state
-        return selfCopy
+        raise NotImplementedError
+
+    # returns the current state of the game in a string for printing
+    def getStringState(self):
+        raise NotImplementedError
+
+    # returns the current state of the game in a format that can be used by a neural network
+    def getNNState(self):
+        raise NotImplementedError
  
     def getTurn(self):
         return self.turn
-
-    def getState(self):
-        return self.state
 
 
 class Nim(Game):
     def __init__(self, player1, player2):
         super().__init__(player1, player2)
-
-    def createInitialState(self):
-        return 20
+        self.state = 20
 
     def getActions(self):
         if self.isTerminal():
@@ -77,6 +73,15 @@ class Nim(Game):
             return self.turn * -1
         else:
             return 0
+
+    def copy(self):
+        gameCopy = Nim(self.player1, self.player2)
+        gameCopy.turn = self.turn
+        gameCopy.state = self.state
+        return gameCopy
+
+    def getStringState(self):
+        return f"There are {self.state} sticks left"
 
 
 # test nim game
