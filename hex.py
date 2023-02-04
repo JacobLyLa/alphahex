@@ -2,6 +2,9 @@ import numpy as np
 import random
 import logging
 from game import Game
+logging.basicConfig()
+# logging.getLogger().setLevel(logging.DEBUG)
+
 
 NEIGHBORS = [(0, 1), (1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1)]
 
@@ -13,9 +16,13 @@ class HexGame(Game):
         self.turn = 1
         self.board = np.zeros(shape=(size,size), dtype=np.int8)
         self.log = logging.getLogger(__name__)
+        self.history = [] # (state, action, turn, result)
 
     def getStringState(self):
-        return self.board
+        return self.board.copy()
+
+    def getNNState(self):
+        return self.board.copy().reshape((1, -1))
 
     def getActions(self):
         actions = []
@@ -25,7 +32,20 @@ class HexGame(Game):
                     actions.append((x, y))
         return actions
 
+    def getActionsMask(self):
+        mask = np.zeros(shape=(self.board.shape[0] * self.board.shape[1]), dtype=np.int8)
+        # flatten the board
+        flatBoard = self.board.copy().reshape(-1)
+        for i in range(len(flatBoard)):
+            if flatBoard[i] == 0:
+                mask[i] = 1
+        return mask
+
     def playAction(self, action):
+        # if action is int, convert to tuple
+        if isinstance(action, int) or isinstance(action, np.int64):
+            action = (action // self.board.shape[1], action % self.board.shape[1])
+
         # check if the coordinates are within the board
         if not self.withinBounds(action):
             self.log.warning(f'{action} is out of bounds\n')
@@ -36,10 +56,13 @@ class HexGame(Game):
             self.log.warning(f'{action} is already occupied\n')
             return
 
+        self.history.append([self.board.copy(), action, self.turn, None])
+
         self.board[action] = self.turn
         self.turn = self.turn * -1
 
         self.log.debug(f'player {self.turn} made move {action} resulting in board state:\n{self.board}\n')
+
 
     def isTerminal(self):
         return self.hasPlayerWon(1) or self.hasPlayerWon(-1)
@@ -51,6 +74,14 @@ class HexGame(Game):
             return -1
         else:
             return 0
+
+    def getHistory(self):
+        # put the result in all history entries
+        for i in range(len(self.history)):
+            result = self.getResult()
+            self.history[i][-1] = result
+
+        return self.history
 
     def copy(self):
         gameCopy = HexGame(self.player1, self.player2, size=self.size)
@@ -112,3 +143,7 @@ if __name__ == '__main__':
     tournament.run(10)
     wins, losses, draws = tournament.getResults()
     print(f'{r1.name} won {wins} times, {r2.name} won {losses} times, and there were {draws} draws')
+
+    game = HexGame(r1, r2)
+    game.playGame()
+    print(game.getHistory())
