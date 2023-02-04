@@ -1,13 +1,12 @@
 import random
 import time
 from math import sqrt, log
-import graphviz as gv
+import logging
+logging.basicConfig()
 
-# TODO: temp default policy, replace with neural network
-# TODO: continue from previous search
+# TODO: temp default policy, replace with neural network and continue from previous search
 def rolloutPolicy(game):
     return random.choice(game.getActions())
-
 
 class Node:
     def __init__(self, game, action=None, parent=None):
@@ -20,8 +19,6 @@ class Node:
         self.reward = 0
 
     def selectChild(self): # UCT
-        # if player is maximizing, select node with highest reward/visits + uct
-        # if player is minimizing, select node with lowest reward/visits - uct
         if self.turn == 1:
             s = max(self.childNodes, key=lambda c: c.reward/c.visits + sqrt(2*log(self.visits)/c.visits))
         else:
@@ -46,82 +43,73 @@ class Node:
 
 
 class Mcts:
-    def __init__(self, iterations=200, timeLimit=2, verbose=False):
-        self.iterations = iterations
-        self.timeLimit = timeLimit
-        self.verbose = verbose
+    def __init__(self, maxIters, maxTime):
+        self.maxIters = maxIters
+        self.maxTime = maxTime
+        self.log = logging.getLogger("MCTS")
+        self.log.setLevel(logging.INFO)
 
-    def search(self, game, verbose=None):
-        if verbose != None:
-            self.verbose = verbose
+    def search(self, game):
         root = Node(game)
         start = time.time()
         iters = 0
-        while (time.time() - start < self.timeLimit) and iters < self.iterations:
+        while (time.time() - start < self.maxTime) and iters < self.maxIters:
             iters += 1
             node = root
             gameCopy = game.copy()
 
-            node = self.select(node, gameCopy)
-            node = self.expand(node, gameCopy)
-            reward = self.rollout(gameCopy)
-            self.backpropagate(node, reward)
+            node = select(node, gameCopy)
+            node = expand(node, gameCopy)
+            reward = rollout(gameCopy)
+            backpropagate(node, reward)
+
+        if iters != self.maxIters:
+            self.log.info(f"Search terminated after {iters} maxIters")
 
         actionNodes = sorted(root.childNodes, key=lambda c: c.visits)
         bestAction = actionNodes[-1].action
 
-        if self.verbose:
-            for actionNode in actionNodes:
-                print(actionNode)
+        for actionNode in actionNodes:
+            self.log.debug(actionNode)
 
         return bestAction
 
-    def select(self, node, gameCopy):
-        while node.untriedActions == [] and node.childNodes != []:
-            node = node.selectChild()
-            gameCopy.playAction(node.action)
-        return node
+def select(node, gameCopy):
+    while node.untriedActions == [] and node.childNodes != []:
+        node = node.selectChild()
+        gameCopy.playAction(node.action)
+    return node
 
-    def expand(self, node, gameCopy):
-        if node.untriedActions != []:
-            action = random.choice(node.untriedActions)
-            gameCopy.playAction(action)
-            node = node.addChild(gameCopy, action)
-        return node
+def expand(node, gameCopy):
+    if node.untriedActions != []:
+        action = random.choice(node.untriedActions)
+        gameCopy.playAction(action)
+        node = node.addChild(gameCopy, action)
+    return node
 
-    def rollout(self, gameCopy):
-        while not gameCopy.isTerminal():
-            gameCopy.playAction(rolloutPolicy(gameCopy))
-        return gameCopy.getResult()
+def rollout(gameCopy):
+    while not gameCopy.isTerminal():
+        gameCopy.playAction(rolloutPolicy(gameCopy))
+    return gameCopy.getResult()
 
-    def backpropagate(self, node, reward):
-        while node != None:
-            node.update(reward)
-            node = node.parentNode
-
+def backpropagate(node, reward):
+    while node != None:
+        node.update(reward)
+        node = node.parentNode
 
 # test with nim game
 if __name__ == "__main__":
     from game import Nim
     from player import HumanPlayer, MCTSPlayer, RandomPlayer
-    
-    mctsPlayer = MCTSPlayer()
-     
-    wins = 0
-    for i in range(100):
-        if i % 2 == 0:
-            game = Nim(mctsPlayer, RandomPlayer())
-        else:
-            game = Nim(RandomPlayer(), mctsPlayer)
+    from tournament import Tournament
 
-        result = game.playGame()
-        if i%2 != 0:
-            result *= -1
-        if result == 1:
-            wins += 1
-    print("MCTS won", wins, "out of 100 games vs random bot")
+    rounds = 20
+    mctsPlayer = MCTSPlayer(maxIters=100, maxTime=1)
+    tournament = Tournament(Nim, mctsPlayer, RandomPlayer())
+    tournament.run(rounds)
+    wins, losses, draws = tournament.getResults()
+    print("MCTS won", wins, "out of", rounds, "games")
 
     humanPlayer = HumanPlayer()
-    mctsPlayer.verbose = True
     game = Nim(humanPlayer, mctsPlayer)
     game.playGame()
