@@ -11,14 +11,10 @@ class HexGame(Game):
         self.player2 = player2
         self.size = size
         self.turn = 1
-        self.board_shape = (size, size)
-        self.board = np.zeros(shape=self.board_shape, dtype=np.int8)
+        self.board = np.zeros(shape=(size,size), dtype=np.int8)
         self.log = logging.getLogger(__name__)
 
-    def createInitialState(self):
-        return self.board
-
-    def getState(self):
+    def getStringState(self):
         return self.board
 
     def getActions(self):
@@ -57,10 +53,10 @@ class HexGame(Game):
             return 0
 
     def copy(self):
-        game_copy = HexGame(self.player1, self.player2, size=self.size)
-        game_copy.turn = self.turn
-        game_copy.board = self.board.copy()
-        return game_copy
+        gameCopy = HexGame(self.player1, self.player2, size=self.size)
+        gameCopy.turn = self.turn
+        gameCopy.board = self.board.copy()
+        return gameCopy
 
     def withinBounds(self, position) -> bool:
         return 0 <= position[0] < self.board.shape[0] and 0 <= position[1] < self.board.shape[1]
@@ -85,9 +81,9 @@ class HexGame(Game):
             return True
 
         for neighbor in NEIGHBORS:
-            neighbor_pos = (position[0] + neighbor[0], position[1] + neighbor[1])
+            neighborPos = (position[0] + neighbor[0], position[1] + neighbor[1])
 
-            if self.searchForWin(player, neighbor_pos, visited):
+            if self.searchForWin(player, neighborPos, visited):
                 return True
 
         return False
@@ -109,12 +105,10 @@ class HexGame(Game):
         return False
 
 if __name__ == '__main__':
-    game = HexGame()
-    while not game.isTerminal():
-        actions = game.getActions()
-        print(actions)
-        action = random.choice(actions)
-        game.playAction(action)
-        print(game.board, end='\n\n')
-
-    print(f'{game.getResult() = }')
+    from player import RandomPlayer
+    from tournament import Tournament
+    r1, r2 = RandomPlayer("Random1"), RandomPlayer("Random2")
+    tournament = Tournament(HexGame, r1, r2)
+    tournament.run(10)
+    wins, losses, draws = tournament.getResults()
+    print(f'{r1.name} won {wins} times, {r2.name} won {losses} times, and there were {draws} draws')
