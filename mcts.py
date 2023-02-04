@@ -46,7 +46,7 @@ class Node:
 
 
 class Mcts:
-    def __init__(self, iterations=200, timeLimit=2, verbose=False):
+    def __init__(self, iterations=50, timeLimit=2, verbose=False):
         self.iterations = iterations
         self.timeLimit = timeLimit
         self.verbose = verbose

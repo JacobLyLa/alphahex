@@ -6,10 +6,13 @@ from game import Game
 NEIGHBORS = [(0, 1), (1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1)]
 
 class HexGame(Game):
-    def __init__(self, board_shape=(4, 4)):
-        self.current_player = 1
-        self.board_shape = board_shape
-        self.board = np.zeros(shape=board_shape)
+    def __init__(self, player1, player2, size=4):
+        self.player1 = player1
+        self.player2 = player2
+        self.size = size
+        self.turn = 1
+        self.board_shape = (size, size)
+        self.board = np.zeros(shape=self.board_shape, dtype=np.int8)
         self.log = logging.getLogger(__name__)
 
     def createInitialState(self):
@@ -37,10 +40,10 @@ class HexGame(Game):
             self.log.warning(f'{action} is already occupied\n')
             return
 
-        self.board[action] = self.current_player
-        self.current_player = self.current_player * -1
+        self.board[action] = self.turn
+        self.turn = self.turn * -1
 
-        self.log.debug(f'player {self.current_player} made move {action} resulting in board state:\n{self.board}\n')
+        self.log.debug(f'player {self.turn} made move {action} resulting in board state:\n{self.board}\n')
 
     def isTerminal(self):
         return self.hasPlayerWon(1) or self.hasPlayerWon(-1)
@@ -54,8 +57,8 @@ class HexGame(Game):
             return 0
 
     def copy(self):
-        game_copy = HexGame(board_shape=self.board_shape)
-        game_copy.current_player = self.current_player
+        game_copy = HexGame(self.player1, self.player2, size=self.size)
+        game_copy.turn = self.turn
         game_copy.board = self.board.copy()
         return game_copy
 
