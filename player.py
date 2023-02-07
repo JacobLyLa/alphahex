@@ -40,7 +40,7 @@ class RandomPlayer(Player):
         game.playAction(action)
 
 class MCTSPlayer(Player):
-    def __init__(self, name="MCTS", maxIters=100, maxTime=1):
+    def __init__(self, maxIters=100, maxTime=1, name="MCTS"):
         super().__init__(name)
         self.mcts = Mcts(maxIters, maxTime)
 
@@ -49,7 +49,7 @@ class MCTSPlayer(Player):
         game.playAction(action)
 
 class NeuralNetPlayer(Player):
-    def __init__(self, name="NeuralNet", model=None, argmax=True):
+    def __init__(self, model=None, argmax=True, name="NeuralNet"):
         super().__init__(name)
         self.model = model
         self.argmax = argmax
@@ -74,10 +74,10 @@ class NeuralNetPlayer(Player):
         game.playAction(action)
 
 class NeuralMCTSPlayer(Player):
-    def __init__(self, name="NeuralMCTS", model=None, maxIters=100, maxTime=1):
+    def __init__(self, model=None, maxIters=100, maxTime=1, name="NeuralMCTS"):
         super().__init__(name)
         self.model = model
-        self.rolloutPolicy = lambda game: NeuralNetPlayer(name="RolloutPolicy", model=model, argmax=False).getAction(game)
+        self.rolloutPolicy = lambda game: NeuralNetPlayer(model=model, argmax=False, name="RolloutPolicy").getAction(game)
         self.mcts = Mcts(maxIters, maxTime, self.rolloutPolicy)
 
     def playAction(self, game):
