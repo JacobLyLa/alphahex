@@ -13,7 +13,6 @@ def getModel():
     model.add(Dense(16, input_dim=inputSize, activation='relu'))
     model.add(Dense(16, activation='relu'))
     model.add(Dense(16, activation='relu'))
-    model.add(Dense(16, activation='relu'))
     model.add(Dense(outputSize, activation='softmax'))
     model.compile(loss='mean_squared_error', optimizer=Adam(learning_rate=0.001))
     return model

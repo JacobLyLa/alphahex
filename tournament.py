@@ -12,6 +12,7 @@ Saves player to file as a model
 def savePlayer(player):
     pass
 
+# TODO: tournment between M agents
 class Tournament:
     def __init__(self, game, player1, player2):
         self.game = game

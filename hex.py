@@ -16,11 +16,11 @@ class HexGame(Game):
         self.turn = 1
         self.board = np.zeros(shape=(size,size), dtype=np.int8)
         self.log = logging.getLogger(__name__)
-        self.history = [] # (state, action, turn, result)
 
     def getStringState(self):
         return self.board.copy()
 
+    # TODO: move to network class
     def getNNState(self):
         return self.board.copy().reshape((1, -1))
 
@@ -42,6 +42,7 @@ class HexGame(Game):
         return mask
 
     def playAction(self, action):
+        # TODO: move to network class
         # if action is int, convert to tuple
         if isinstance(action, int) or isinstance(action, np.int64):
             action = (action // self.board.shape[1], action % self.board.shape[1])
@@ -55,8 +56,6 @@ class HexGame(Game):
         if self.board[action] != 0:
             self.log.warning(f'{action} is already occupied\n')
             return
-
-        self.history.append([self.board.copy(), action, self.turn, None])
 
         self.board[action] = self.turn
         self.turn = self.turn * -1
@@ -74,14 +73,6 @@ class HexGame(Game):
             return -1
         else:
             return 0
-
-    def getHistory(self):
-        # put the result in all history entries
-        for i in range(len(self.history)):
-            result = self.getResult()
-            self.history[i][-1] = result
-
-        return self.history
 
     def copy(self):
         gameCopy = HexGame(self.player1, self.player2, size=self.size)
@@ -143,7 +134,3 @@ if __name__ == '__main__':
     tournament.run(10)
     wins, losses, draws = tournament.getResults()
     print(f'{r1.name} won {wins} times, {r2.name} won {losses} times, and there were {draws} draws')
-
-    game = HexGame(r1, r2)
-    game.playGame()
-    print(game.getHistory())

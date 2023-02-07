@@ -4,8 +4,7 @@ from math import sqrt, log
 import logging
 from neuralnet import getModel
 logging.basicConfig()
-
-
+# logging.getLogger().setLevel(logging.DEBUG)
 def randomRolloutPolicy(game):
     return random.choice(game.getActions())
 
@@ -50,6 +49,7 @@ class Mcts:
         self.rolloutPolicy = rolloutPolicy
         self.log = logging.getLogger("MCTS")
         self.log.setLevel(logging.INFO)
+        self.replayBuffer = []
 
     def search(self, game):
         root = Node(game)
@@ -71,8 +71,15 @@ class Mcts:
         actionNodes = sorted(root.childNodes, key=lambda c: c.visits)
         bestAction = actionNodes[-1].action
 
+        #  Create action distribution probabilities
+        print(game.getStringState())
         for actionNode in actionNodes:
-            self.log.debug(actionNode)
+            #self.log.debug(actionNode)
+            print(actionNode)
+            pass
+        print("-"*20)
+
+        # TODO: append to replay buffer... (state, actiondist) + swap/reverse board for player -1
 
         return bestAction
 
@@ -101,14 +108,14 @@ def backpropagate(node, reward):
 
 if __name__ == "__main__":
     from hex import HexGame
-    from player import RandomPlayer, NeuralNetPlayer, NeuralMCTSPlayer
+    from player import RandomPlayer, NeuralNetPlayer, NeuralMCTSPlayer, MCTSPlayer
     from tournament import Tournament
 
-    rounds = 4
+    rounds = 1
     model = getModel()
-    nnMctsPlayer = NeuralMCTSPlayer(model=model, maxIters=10, maxTime=4)
-    nnPlayer = NeuralNetPlayer(model=model)
-    tournament = Tournament(HexGame, nnMctsPlayer, nnPlayer)
+    nnMctsPlayer = NeuralMCTSPlayer(model=model, maxIters=30, maxTime=10)
+    randomPlayer = RandomPlayer()
+    tournament = Tournament(HexGame, nnMctsPlayer, randomPlayer)
     tournament.run(rounds)
     wins, losses, draws = tournament.getResults()
     print(f"NN MCTS Player: {wins} wins, {losses} losses, {draws} draws")
