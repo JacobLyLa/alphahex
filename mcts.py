@@ -36,7 +36,7 @@ class Node:
         self.reward += reward
 
     def __repr__(self):
-        return "[MCTS Node] Action: " + str(self.action) + " Visits: " + str(self.visits) + " Expected Reward: " + str(round(self.reward/self.visits,3))
+        return f"[MCTS Node] Action: {self.action} Visits: {self.visits} Expected Reward: {self.reward/self.visits :.3f}"
 
     def __str__(self):
         return self.__repr__()
@@ -72,14 +72,11 @@ class Mcts:
         bestAction = actionNodes[-1].action
 
         #  Create action distribution probabilities
-        print(game.getStringState())
-        for actionNode in actionNodes:
-            #self.log.debug(actionNode)
-            print(actionNode)
-            pass
-        print("-"*20)
+        totalVisits = sum(node.visits for node in actionNodes)
+        actionDist = {node.visits/totalVisits: node for node in actionNodes}
 
-        # TODO: append to replay buffer... (state, actiondist) + swap/reverse board for player -1
+        self.replayBuffer.append((root, actionDist))
+        # TODO: swap/reverse board for player -1
 
         return bestAction
 
