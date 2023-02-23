@@ -20,7 +20,7 @@ class Node:
 
     def selectChild(self): # UCT
         if self.turn == 1:
-            s = max(self.childNodes, key=lambda c: c.reward/c.visits + sqrt(2*log(self.visits)/c.visits))
+            s = max(self.childNodes, key=lambda c: c.reward/c.visits + sqrt(2*log(self.visits)/c.visits)) # can add temperature here
         else:
             s = min(self.childNodes, key=lambda c: c.reward/c.visits - sqrt(2*log(self.visits)/c.visits))
         return s
@@ -73,9 +73,8 @@ class Mcts:
 
         #  Create action distribution probabilities
         totalVisits = sum(node.visits for node in actionNodes)
-        actionDist = {node.visits/totalVisits: node for node in actionNodes}
-
-        self.replayBuffer.append((root, actionDist))
+        actionDist = {node.action: node.visits/totalVisits for node in actionNodes}
+        self.replayBuffer.append((game.copy(), actionDist))
         # TODO: swap/reverse board for player -1
 
         return bestAction
@@ -108,11 +107,16 @@ if __name__ == "__main__":
     from player import RandomPlayer, NeuralNetPlayer, NeuralMCTSPlayer, MCTSPlayer
     from tournament import Tournament
 
-    rounds = 1
+    rounds = 10
     model = getModel()
-    nnMctsPlayer = NeuralMCTSPlayer(model=model, maxIters=30, maxTime=10)
+    # nnMctsPlayer = NeuralMCTSPlayer(model=model, maxIters=30, maxTime=10)
+    nnMctsPlayer = MCTSPlayer(maxIters=30, maxTime=10)
     randomPlayer = RandomPlayer()
     tournament = Tournament(HexGame, nnMctsPlayer, randomPlayer)
     tournament.run(rounds)
     wins, losses, draws = tournament.getResults()
     print(f"NN MCTS Player: {wins} wins, {losses} losses, {draws} draws")
+
+    replay = nnMctsPlayer.mcts.replayBuffer
+    print(replay)
+    print(f'Length of replay buffer: {len(replay)}')

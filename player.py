@@ -56,6 +56,7 @@ class NeuralNetPlayer(Player):
 
     def getAction(self, game):
         actionProbs = self.model.predict(game.getNNState(), verbose=0)
+        # if player was 2, flip the actions
         # replace illegal actions with 0
         legalActions = game.getActionsMask()
         for i in range(len(actionProbs[0])):

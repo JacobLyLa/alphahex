@@ -20,17 +20,12 @@ class HexGame(Game):
     def getStringState(self):
         return self.board.copy()
 
-    # TODO: move to network class
+    # TODO: flip board for player 2
     def getNNState(self):
         return self.board.copy().reshape((1, -1))
 
-    def getActions(self):
-        actions = []
-        for x in range(self.board.shape[0]):
-            for y in range(self.board.shape[1]):
-                if self.board[x, y] == 0:
-                    actions.append((x, y))
-        return actions
+    def flipAction(self, action):
+        pass # TODO
 
     def getActionsMask(self):
         mask = np.zeros(shape=(self.board.shape[0] * self.board.shape[1]), dtype=np.int8)
@@ -40,6 +35,14 @@ class HexGame(Game):
             if flatBoard[i] == 0:
                 mask[i] = 1
         return mask
+
+    def getActions(self):
+        actions = []
+        for x in range(self.board.shape[0]):
+            for y in range(self.board.shape[1]):
+                if self.board[x, y] == 0:
+                    actions.append((x, y))
+        return actions
 
     def playAction(self, action):
         # TODO: move to network class
