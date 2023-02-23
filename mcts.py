@@ -107,10 +107,10 @@ if __name__ == "__main__":
     from player import RandomPlayer, NeuralNetPlayer, NeuralMCTSPlayer, MCTSPlayer
     from tournament import Tournament
 
-    rounds = 10
+    rounds = 4
     model = getModel()
-    # nnMctsPlayer = NeuralMCTSPlayer(model=model, maxIters=30, maxTime=10)
-    nnMctsPlayer = MCTSPlayer(maxIters=30, maxTime=10)
+    nnMctsPlayer = NeuralMCTSPlayer(model=model, maxIters=30, maxTime=10)
+    # nnMctsPlayer = MCTSPlayer(maxIters=30, maxTime=10)
     randomPlayer = RandomPlayer()
     tournament = Tournament(HexGame, nnMctsPlayer, randomPlayer)
     tournament.run(rounds)

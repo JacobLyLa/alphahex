@@ -13,27 +13,35 @@ class HexGame(Game):
         self.player1 = player1
         self.player2 = player2
         self.size = size
-        self.turn = 1
         self.board = np.zeros(shape=(size,size), dtype=np.int8)
+        self.turn = 1
         self.log = logging.getLogger(__name__)
 
     def getStringState(self):
         return self.board.copy()
 
-    # TODO: flip board for player 2
     def getNNState(self):
-        return self.board.copy().reshape((1, -1))
+        board = self.board * self.turn
+        if self.turn == -1:
+            board = board.T
+        return board.reshape((1, -1))
 
     def flipAction(self, action):
-        pass # TODO
+        action = (action // self.size, action % self.size)
+        action = (action[1], action[0])
+        return action[0] * self.size + action[1]
 
     def getActionsMask(self):
         mask = np.zeros(shape=(self.board.shape[0] * self.board.shape[1]), dtype=np.int8)
         # flatten the board
-        flatBoard = self.board.copy().reshape(-1)
+        if self.turn == -1:
+            flatBoard = self.board.T.reshape(-1)
+        else:
+            flatBoard = self.board.reshape(-1)
         for i in range(len(flatBoard)):
             if flatBoard[i] == 0:
                 mask[i] = 1
+
         return mask
 
     def getActions(self):

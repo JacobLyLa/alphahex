@@ -68,6 +68,10 @@ class NeuralNetPlayer(Player):
             # normalize the action probabilities
             actionProbs = actionProbs / np.sum(actionProbs)
             action = np.random.choice(len(actionProbs[0]), p=actionProbs[0])
+
+        if game.turn == -1:
+            action = game.flipAction(action)
+
         return action
 
     def playAction(self, game):
