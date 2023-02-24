@@ -1,8 +1,6 @@
 import random
-from mcts import Mcts
 import numpy as np
 
-# Player to be used in a game, only needs to implement the play method.
 class Player:
     def __init__(self, name):
         self.name = name
@@ -39,15 +37,6 @@ class RandomPlayer(Player):
         action = random.choice(game.getActions())
         game.playAction(action)
 
-class MCTSPlayer(Player):
-    def __init__(self, maxIters=100, maxTime=1, name="MCTS"):
-        super().__init__(name)
-        self.mcts = Mcts(maxIters, maxTime)
-
-    def playAction(self, game):
-        action = self.mcts.search(game)
-        game.playAction(action)
-
 class NeuralNetPlayer(Player):
     def __init__(self, model=None, argmax=True, name="NeuralNet"):
         super().__init__(name)
@@ -56,6 +45,7 @@ class NeuralNetPlayer(Player):
 
     def getAction(self, game):
         actionProbs = self.model.predict(game.getNNState(), verbose=0)
+        print(actionProbs)
         # if player was 2, flip the actions
         # replace illegal actions with 0
         legalActions = game.getActionsMask()
@@ -78,13 +68,7 @@ class NeuralNetPlayer(Player):
         action = self.getAction(game)
         game.playAction(action)
 
-class NeuralMCTSPlayer(Player):
-    def __init__(self, model=None, maxIters=100, maxTime=1, name="NeuralMCTS"):
-        super().__init__(name)
-        self.model = model
-        self.rolloutPolicy = lambda game: NeuralNetPlayer(model=model, argmax=False, name="RolloutPolicy").getAction(game)
-        self.mcts = Mcts(maxIters, maxTime, self.rolloutPolicy)
-
-    def playAction(self, game):
-        action = self.mcts.search(game)
-        game.playAction(action)
+def getNormalNeuralNetRolloutPolicy(model):
+    def rolloutPolicy(game):
+        return lambda game: NeuralNetPlayer(model=model, argmax=False, name="RolloutPolicy").getAction(game)
+    return rolloutPolicy
