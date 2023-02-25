@@ -1,7 +1,7 @@
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense
-from tensorflow.keras.optimizers import Adam
 import numpy as np
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.optimizers import Adam
 
 size=4
 inputSize = size*size
@@ -17,7 +17,8 @@ def getModel():
 
 if __name__ == '__main__':
     from hex import HexGame
-    from player import RandomPlayer, NeuralNetPlayer, NeuralMCTSPlayer, MCTSPlayer
+    from mcts import MCTSPlayer, NeuralMCTSPlayer
+    from player import NeuralNetPlayer, RandomPlayer
     from tournament import Tournament
     rounds = 1
     model = getModel()
