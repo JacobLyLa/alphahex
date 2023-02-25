@@ -148,7 +148,7 @@ class HexGame(Game):
 
 
 class HexPlotter():
-    def __init__(self, game: HexGame, R=0.5, pause_after_plot=0.001):
+    def __init__(self, game: HexGame, R=0.5, pause_after_plot=0.3):
         self.game = game
         self.pause_after_plot = pause_after_plot
 
@@ -191,7 +191,7 @@ if __name__ == '__main__':
     from player import RandomPlayer
     from tournament import Tournament
     r1, r2 = RandomPlayer("Random1"), RandomPlayer("Random2")
-    tournament = Tournament(HexGame, r1, r2, plot=True)
+    tournament = Tournament(HexGame, r1, r2, boardSize=5, plot=True)
     tournament.run(5)
     wins, losses, draws = tournament.getResults()
     print(f'{r1.name} won {wins} times, {r2.name} won {losses} times, and there were {draws} draws')

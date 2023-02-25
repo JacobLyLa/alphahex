@@ -33,6 +33,7 @@ class NeuralMCTSPlayer(Player):
         game.playAction(action)
 
 def batchRolloutPolicy(game):
+    gameSize = game.size * game.size
     global games
     global calc_done
     global results
@@ -45,7 +46,7 @@ def batchRolloutPolicy(game):
 
         if len(games) >= len(threads):
             if not calc_done:
-                results = model.predict(np.array(games).reshape(len(threads), 16), verbose=0)
+                results = model.predict(np.array(games).reshape(len(threads), gameSize), verbose=0)
                 condition.notify_all()
                 calc_done = True
         else:
@@ -62,7 +63,8 @@ def batchRolloutPolicy(game):
 
 # TODO: this is just copied from neuralnet player
 def getAction(game, probs):
-    actionProbs = probs.reshape((1, 16))
+    gameSize = game.size * game.size
+    actionProbs = probs.reshape((1, gameSize))
     legalActions = game.getActionsMask()
     for i in range(len(actionProbs[0])):
         if legalActions[i] == 0:
@@ -221,8 +223,8 @@ if __name__ == "__main__":
     import pickle
 
     from hex import HexGame
-    from neuralnet import getModel
-    from player import RandomPlayer  # , NeuralMCTSPlayer, MCTSPlayer
+    from neuralnet import createModel, loadModel
+    from player import RandomPlayer
     batchSize = 128
     barrier = threading.Barrier(batchSize)
     games = []
@@ -232,16 +234,20 @@ if __name__ == "__main__":
     results =  [None] * batchSize
     threads = []
 
-    model = getModel()
+    boardSize = 4
+    modelName = f'model.{boardSize}'
+    model = createModel(size=boardSize)
+    # model = loadModel(modelName)
     replayBufferList = []
     start = time.time()
     for i in range(batchSize):
         # create unique players such that replay buffer is unique
         # alternatively use set to remove duplicates
-        nnMctsPlayer = NeuralMCTSPlayer(model=model, maxIters=200, maxTime=400)
+        nnMctsPlayer = NeuralMCTSPlayer(model=model, maxIters=100, maxTime=400)
         nnMctsPlayer.mcts.rolloutPolicy = batchRolloutPolicy
-        randomPlayer = RandomPlayer()
-        game = HexGame(nnMctsPlayer, randomPlayer)
+        nnMctsPlayer2 = NeuralMCTSPlayer(model=model, maxIters=100, maxTime=400)
+        nnMctsPlayer2.mcts.rolloutPolicy = batchRolloutPolicy
+        game = HexGame(nnMctsPlayer, nnMctsPlayer2, size=boardSize)
         t = threading.Thread(target=threadJob, args=(game, replayBufferList))
         threads.append(t)
         
@@ -254,5 +260,16 @@ if __name__ == "__main__":
     # flatten results and save
     replayBufferList = [item for sublist in replayBufferList for item in sublist]
     print("Replaybuffer has", len(replayBufferList), "data points")
-    with open("replayBuffer.pickle", "wb") as f:
+
+    # if file exists, load and append
+    dataName = f'replayBuffer{boardSize}.pickle'
+    try:
+        with open(dataName, "rb") as f:
+            replayBufferList = pickle.load(f) + replayBufferList
+    except:
+        pass
+
+    with open(dataName, "wb") as f:
         pickle.dump(replayBufferList, f)
+
+    print("Saved", len(replayBufferList), "data points to", dataName)

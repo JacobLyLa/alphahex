@@ -2,18 +2,18 @@ import numpy as np
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
-
-size=4
-inputSize = size*size
-outputSize = size*size
+import tensorflow as tf
 
 # regression model
-def getModel():
+def createModel(size):
     model = Sequential()
-    model.add(Dense(16, input_dim=inputSize, activation='relu'))
-    model.add(Dense(outputSize, activation='softmax'))
+    model.add(Dense(size*size, input_dim=size*size, activation='relu'))
+    model.add(Dense(size*size, activation='softmax'))
     model.compile(loss='mean_squared_error', optimizer=Adam(learning_rate=0.01))
     return model
+
+def loadModel(path):
+    return tf.keras.models.load_model(path)
 
 if __name__ == '__main__':
     from hex import HexGame
@@ -21,7 +21,7 @@ if __name__ == '__main__':
     from player import NeuralNetPlayer, RandomPlayer
     from tournament import Tournament
     rounds = 1
-    model = getModel()
+    model = createModel()
     nnMctsPlayer = NeuralMCTSPlayer(model=model, maxIters=30, maxTime=5)
     randomPlayer = RandomPlayer()
     tournament = Tournament(HexGame, nnMctsPlayer, randomPlayer)
