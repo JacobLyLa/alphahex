@@ -1,10 +1,82 @@
-import random
-import time
-from math import sqrt, log
 import logging
-from neuralnet import getModel
+import random
+import threading
+import time
+from math import log, sqrt
+
+import numpy as np
+
 logging.basicConfig()
 # logging.getLogger().setLevel(logging.DEBUG)
+
+from player import NeuralNetPlayer, Player
+
+
+class MCTSPlayer(Player):
+    def __init__(self, maxIters=100, maxTime=1, name="MCTS"):
+        super().__init__(name)
+        self.mcts = Mcts(maxIters, maxTime)
+
+    def playAction(self, game):
+        action = self.mcts.search(game)
+        game.playAction(action)
+
+class NeuralMCTSPlayer(Player):
+    def __init__(self, model=None, maxIters=100, maxTime=1, name="NeuralMCTS"):
+        super().__init__(name)
+        self.model = model
+        self.rolloutPolicy = lambda game: NeuralNetPlayer(model=model, argmax=False, name="RolloutPolicy").getAction(game)
+        self.mcts = Mcts(maxIters, maxTime, self.rolloutPolicy)
+
+    def playAction(self, game):
+        action = self.mcts.search(game)
+        game.playAction(action)
+
+def batchRolloutPolicy(game):
+    global games
+    global calc_done
+    global results
+    # check how many threads that are started or initiated
+    with lock:
+        # find index of this thread ignoring stopped threads
+        thread_id = threads.index(threading.current_thread())
+        game = game.getNNState()
+        games.append(game)
+
+        if len(games) >= len(threads):
+            if not calc_done:
+                results = model.predict(np.array(games).reshape(len(threads), 16), verbose=0)
+                condition.notify_all()
+                calc_done = True
+        else:
+            while not calc_done:
+                condition.wait()
+                
+        thread_action = results[thread_id]
+        results[thread_id] = thread_action
+
+    # if all threads have come to this point, reset the batch
+    barrier.wait()
+    games = []
+    calc_done = False
+
+# TODO: this is just copied from neuralnet player
+def getAction(game, probs):
+    actionProbs = probs.reshape((1, 16))
+    legalActions = game.getActionsMask()
+    for i in range(len(actionProbs[0])):
+        if legalActions[i] == 0:
+            actionProbs[0][i] = 0
+
+    # normalize the action probabilities
+    actionProbs = actionProbs / np.sum(actionProbs)
+    action = np.random.choice(len(actionProbs[0]), p=actionProbs[0])
+
+    if game.turn == -1:
+        action = game.flipAction(action)
+
+    return action
+       
 def randomRolloutPolicy(game):
     return random.choice(game.getActions())
 
@@ -62,7 +134,11 @@ class Mcts:
 
             node = select(node, gameCopy)
             node = expand(node, gameCopy)
-            reward = self.rollout(gameCopy)
+
+            if self.rolloutPolicy.__name__ == "batchRolloutPolicy":
+                reward = self.batchRollout(gameCopy)
+            else:
+                reward = self.rollout(gameCopy)
             backpropagate(node, reward)
 
         if iters != self.maxIters:
@@ -74,14 +150,30 @@ class Mcts:
         #  Create action distribution probabilities
         totalVisits = sum(node.visits for node in actionNodes)
         actionDist = {node.action: node.visits/totalVisits for node in actionNodes}
-        self.replayBuffer.append((game.copy(), actionDist))
-        # TODO: swap/reverse board for player -1
+        actionDistNumpy = np.zeros((game.size, game.size))
+        for action, prob in actionDist.items():
+            actionDistNumpy[action] = prob
+        if game.getTurn() == -1: # TODO: refactor to make mcts agnostic to turn
+            actionDistNumpy = actionDistNumpy.T
+        actionDistNumpy = actionDistNumpy.reshape((1, game.size*game.size))
+        self.replayBuffer.append((game.getNNState(), actionDistNumpy))
 
         return bestAction
 
     def rollout(self, gameCopy):
         while not gameCopy.isTerminal():
             gameCopy.playAction(self.rolloutPolicy(gameCopy))
+        return gameCopy.getResult()
+
+    def batchRollout(self, gameCopy):
+        activeThreads = [t for t in threads if not t._is_stopped]
+        threadid = activeThreads.index(threading.current_thread())
+        while not gameCopy.isTerminal():
+            self.rolloutPolicy(gameCopy)
+            probs = results[threadid]
+            action = getAction(gameCopy, probs)
+            barrier.wait()
+            gameCopy.playAction(action)
         return gameCopy.getResult()
 
 def select(node, gameCopy):
@@ -102,21 +194,65 @@ def backpropagate(node, reward):
         node.update(reward)
         node = node.parentNode
 
+def threadJob(game, replayBufferList):
+    gameCopy = game.copy()
+    game.playGame()
+    result = []
+    p1 = game.player1
+    if isinstance(p1, NeuralMCTSPlayer):
+        result += p1.mcts.replayBuffer
+    
+    p2 = game.player2
+    if isinstance(p2, NeuralMCTSPlayer):
+        result += p2.mcts.replayBuffer
+
+    replayBufferList.append(result)
+    print(f"{threading.current_thread().name} done | {int(time.time() - start)}s | {len(replayBufferList)}/{batchSize} | winner={game.getResult()} | data points={len(result)}")
+
+    # when done just continue to call batchRolloutPolicy
+    while True: # yes super waste of resources, have to wait for the last game to finish
+        batchRolloutPolicy(gameCopy)
+        activeThreads = [t for t in threads if not t._is_stopped]
+        if len(replayBufferList) > batchSize -1:
+            break
+        barrier.wait()
+
 if __name__ == "__main__":
+    import pickle
+
     from hex import HexGame
-    from player import RandomPlayer, NeuralNetPlayer, NeuralMCTSPlayer, MCTSPlayer
-    from tournament import Tournament
+    from neuralnet import getModel
+    from player import RandomPlayer  # , NeuralMCTSPlayer, MCTSPlayer
+    batchSize = 128
+    barrier = threading.Barrier(batchSize)
+    games = []
+    lock = threading.Lock()
+    calc_done = False
+    condition = threading.Condition(lock)
+    results =  [None] * batchSize
+    threads = []
 
-    rounds = 4
     model = getModel()
-    nnMctsPlayer = NeuralMCTSPlayer(model=model, maxIters=30, maxTime=10)
-    # nnMctsPlayer = MCTSPlayer(maxIters=30, maxTime=10)
-    randomPlayer = RandomPlayer()
-    tournament = Tournament(HexGame, nnMctsPlayer, randomPlayer)
-    tournament.run(rounds)
-    wins, losses, draws = tournament.getResults()
-    print(f"NN MCTS Player: {wins} wins, {losses} losses, {draws} draws")
+    replayBufferList = []
+    start = time.time()
+    for i in range(batchSize):
+        # create unique players such that replay buffer is unique
+        # alternatively use set to remove duplicates
+        nnMctsPlayer = NeuralMCTSPlayer(model=model, maxIters=200, maxTime=400)
+        nnMctsPlayer.mcts.rolloutPolicy = batchRolloutPolicy
+        randomPlayer = RandomPlayer()
+        game = HexGame(nnMctsPlayer, randomPlayer)
+        t = threading.Thread(target=threadJob, args=(game, replayBufferList))
+        threads.append(t)
+        
+    for t in threads:
+        t.start()
 
-    replay = nnMctsPlayer.mcts.replayBuffer
-    print(replay)
-    print(f'Length of replay buffer: {len(replay)}')
+    for t in threads:
+        t.join()
+
+    # flatten results and save
+    replayBufferList = [item for sublist in replayBufferList for item in sublist]
+    print("Replaybuffer has", len(replayBufferList), "data points")
+    with open("replayBuffer.pickle", "wb") as f:
+        pickle.dump(replayBufferList, f)
