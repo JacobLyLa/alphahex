@@ -45,7 +45,6 @@ class NeuralNetPlayer(Player):
 
     def getAction(self, game):
         actionProbs = self.model.predict(game.getNNState(), verbose=0)
-        print(actionProbs)
         # if player was 2, flip the actions
         # replace illegal actions with 0
         legalActions = game.getActionsMask()
@@ -67,8 +66,3 @@ class NeuralNetPlayer(Player):
     def playAction(self, game):
         action = self.getAction(game)
         game.playAction(action)
-
-def getNormalNeuralNetRolloutPolicy(model):
-    def rolloutPolicy(game):
-        return lambda game: NeuralNetPlayer(model=model, argmax=False, name="RolloutPolicy").getAction(game)
-    return rolloutPolicy
