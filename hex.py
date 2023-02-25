@@ -158,6 +158,7 @@ class HexPlotter():
         self.dist_side = R * sqrt(3) / 2
 
         fig, ax = plt.subplots(1, figsize=(10, 8))
+        ax.set_title(f'Red player is {game.player1.name}, blue player is {game.player2.name}')
         ax.axis('off')
         ax.set_aspect('equal')
         padding = 0.02
@@ -191,6 +192,7 @@ if __name__ == '__main__':
     from tournament import Tournament
     r1, r2 = RandomPlayer("Random1"), RandomPlayer("Random2")
     tournament = Tournament(HexGame, r1, r2, plot=True)
-    tournament.run(10)
+    tournament.run(5)
     wins, losses, draws = tournament.getResults()
     print(f'{r1.name} won {wins} times, {r2.name} won {losses} times, and there were {draws} draws')
+    plt.show() # to not close the plot after the game is finished
