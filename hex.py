@@ -148,23 +148,22 @@ class HexGame(Game):
 
 
 class HexPlotter():
-    def __init__(self, game: HexGame, R=0.5, pause_after_plot=0.3):
+    def __init__(self, game: HexGame, distCorner=0.5, pauseAfterPlot=0.3):
         self.game = game
-        self.pause_after_plot = pause_after_plot
+        self.pauseAfterPlot = pauseAfterPlot
 
         # distance between center and corner
-        self.dist_corner = R
+        self.distCorner = distCorner
         # distance between center and middle of side
-        self.dist_side = R * sqrt(3) / 2
+        self.distSide = distCorner * sqrt(3) / 2
 
-        fig, ax = plt.subplots(1, figsize=(10, 8))
-        ax.set_title(f'Red player is {game.player1.name}, blue player is {game.player2.name}')
-        ax.axis('off')
-        ax.set_aspect('equal')
+        self.fig, self.ax = plt.subplots(1, figsize=(10, 8))
+        self.ax.set_title(f'Red player is {game.player1.name}, blue player is {game.player2.name}')
+        self.ax.axis('off')
+        self.ax.set_aspect('equal')
         padding = 0.02
-        ax.set_xlim(-self.dist_side - padding, (3 * game.size - 2) * self.dist_side + padding)
-        ax.set_ylim(-(1.5 * game.size - 0.5) * self.dist_corner - padding, self.dist_corner + padding)
-        self.ax = ax
+        self.ax.set_xlim(-self.distSide - padding, (3 * game.size - 2) * self.distSide + padding)
+        self.ax.set_ylim(-(1.5 * game.size - 0.5) * self.distCorner - padding, self.distCorner + padding)
 
         self.colors = {1: 'red', -1: 'blue', 0: 'white'}
 
@@ -174,16 +173,16 @@ class HexPlotter():
         for x in range(self.game.size):
             for y in range(self.game.size):
                 self.plot_hexagon(x, y, self.colors[self.game.board[x, y]])
-        plt.pause(self.pause_after_plot)
+        plt.pause(self.pauseAfterPlot)
 
     def plot_action(self, action):
         self.plot_hexagon(action[0], action[1], self.colors[-1 * self.game.turn])
-        plt.pause(self.pause_after_plot)
+        plt.pause(self.pauseAfterPlot)
 
     def plot_hexagon(self, row, col, color='white'):
-        x = 2 * self.dist_side * col + self.dist_side * row
-        y = - 1.5 * self.dist_corner * row
-        hex = RegularPolygon((x, y), numVertices=6, radius=self.dist_corner, orientation=0, facecolor=color, edgecolor='black', alpha=0.8, linewidth=2)
+        x = 2 * self.distSide * col + self.distSide * row
+        y = - 1.5 * self.distCorner * row
+        hex = RegularPolygon((x, y), numVertices=6, radius=self.distCorner, orientation=0, facecolor=color, edgecolor='black', alpha=0.8, linewidth=2)
         self.ax.add_patch(hex)
 
 

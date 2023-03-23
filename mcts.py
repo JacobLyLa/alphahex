@@ -52,7 +52,7 @@ def batchRolloutPolicy(game):
         else:
             while not calc_done:
                 condition.wait()
-                
+
         thread_action = results[thread_id]
         results[thread_id] = thread_action
 
@@ -78,7 +78,7 @@ def getAction(game, probs):
         action = game.flipAction(action)
 
     return action
-       
+
 def randomRolloutPolicy(game):
     return random.choice(game.getActions())
 
@@ -203,7 +203,7 @@ def threadJob(game, replayBufferList):
     p1 = game.player1
     if isinstance(p1, NeuralMCTSPlayer):
         result += p1.mcts.replayBuffer
-    
+
     p2 = game.player2
     if isinstance(p2, NeuralMCTSPlayer):
         result += p2.mcts.replayBuffer
@@ -250,7 +250,7 @@ if __name__ == "__main__":
         game = HexGame(nnMctsPlayer, nnMctsPlayer2, size=boardSize)
         t = threading.Thread(target=threadJob, args=(game, replayBufferList))
         threads.append(t)
-        
+
     for t in threads:
         t.start()
 
