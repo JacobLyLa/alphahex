@@ -1,17 +1,5 @@
 import random
 
-'''
-Restores best model from file and returns it as a player
-'''
-def restoreBestPlayer():
-    pass
-
-'''
-Saves player to file as a model
-'''
-def savePlayer(player):
-    pass
-
 # TODO: tournment between M agents
 class Tournament:
     def __init__(self, game, player1, player2, boardSize=4, plot=False):

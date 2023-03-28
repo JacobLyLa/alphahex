@@ -1,5 +1,6 @@
 import random
 import numpy as np
+from mcts import Mcts
 
 class Player:
     def __init__(self, name):
@@ -65,4 +66,25 @@ class NeuralNetPlayer(Player):
 
     def playAction(self, game):
         action = self.getAction(game)
+        game.playAction(action)
+
+
+class MCTSPlayer(Player):
+    def __init__(self, maxIters=100, maxTime=1, name="MCTS"):
+        super().__init__(name)
+        self.mcts = Mcts(maxIters, maxTime)
+
+    def playAction(self, game):
+        action = self.mcts.search(game)
+        game.playAction(action)
+
+class NeuralMCTSPlayer(Player):
+    def __init__(self, model=None, maxIters=100, maxTime=1, name="NeuralMCTS", TM=None):
+        super().__init__(name)
+        self.model = model
+        self.rolloutPolicy = lambda game: NeuralNetPlayer(model=model, argmax=False, name="RolloutPolicy").getAction(game)
+        self.mcts = Mcts(maxIters, maxTime, self.rolloutPolicy, TM)
+
+    def playAction(self, game):
+        action = self.mcts.search(game)
         game.playAction(action)
