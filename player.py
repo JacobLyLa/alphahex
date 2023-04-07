@@ -2,6 +2,21 @@ import random
 import numpy as np
 from mcts import Mcts
 
+def argmaxPolicy(actionNodes):
+    return max(actionNodes, key=lambda node: node.visits).action
+
+def epsilonGreedyPolicy(actionNodes, epsilon=0.1):
+    if random.random() < epsilon:
+        return random.choice(actionNodes).action
+    else:
+        return argmaxPolicy(actionNodes)
+
+def probabilsticPolicy(actionNodes):
+    actionProbs = np.array([node.visits for node in actionNodes])
+    actionProbs = actionProbs / np.sum(actionProbs)
+    action = np.random.choice(len(actionProbs), p=actionProbs)
+    return actionNodes[action].action
+
 class Player:
     def __init__(self, name):
         self.name = name
@@ -39,28 +54,23 @@ class RandomPlayer(Player):
         game.playAction(action)
 
 class NeuralNetPlayer(Player):
-    def __init__(self, model=None, argmax=True, name="NeuralNet"):
+    def __init__(self, model=None, argmax=False, name="NeuralNet"):
         super().__init__(name)
         self.model = model
         self.argmax = argmax
 
     def getAction(self, game):
-        actionProbs = self.model.predict(game.getNNState(), verbose=0)
-        # if player was 2, flip the actions
-        # replace illegal actions with 0
-        legalActions = game.getActionsMask()
-        for i in range(len(actionProbs[0])):
-            if legalActions[i] == 0:
-                actionProbs[0][i] = 0
+        actionProbs = self.model.predict(game.getNNState(), verbose=0)[0]
+        legalActionsMask = np.zeros(len(actionProbs))
+        for action in game.getActions():
+            legalActionsMask[action] = 1
+        actionProbs = actionProbs * legalActionsMask
+
         if self.argmax:
             action = np.argmax(actionProbs)
         else:
-            # normalize the action probabilities
             actionProbs = actionProbs / np.sum(actionProbs)
-            action = np.random.choice(len(actionProbs[0]), p=actionProbs[0])
-
-        if game.turn == -1:
-            action = game.flipAction(action)
+            action = np.random.choice(len(actionProbs), p=actionProbs)
 
         return action
 
@@ -68,23 +78,38 @@ class NeuralNetPlayer(Player):
         action = self.getAction(game)
         game.playAction(action)
 
-
 class MCTSPlayer(Player):
-    def __init__(self, maxIters=100, maxTime=1, name="MCTS"):
+    def __init__(self, maxIters, maxTime, argmax=True, name="MCTS"):
         super().__init__(name)
         self.mcts = Mcts(maxIters, maxTime)
+        self.argmax = argmax
+
+    def selectAction(self, actionNodes):
+        if self.argmax:
+            return argmaxPolicy(actionNodes)
+        else:
+            return epsilonGreedyPolicy(actionNodes)
 
     def playAction(self, game):
-        action = self.mcts.search(game)
+        actionNodes = self.mcts.search(game)
+        action = self.selectAction(actionNodes)
         game.playAction(action)
 
 class NeuralMCTSPlayer(Player):
-    def __init__(self, model=None, maxIters=100, maxTime=1, name="NeuralMCTS", TM=None):
+    def __init__(self, model, maxIters, maxTime, argmax=True, name="NeuralMCTS", TM=None):
         super().__init__(name)
         self.model = model
+        self.argmax = argmax
         self.rolloutPolicy = lambda game: NeuralNetPlayer(model=model, argmax=False, name="RolloutPolicy").getAction(game)
         self.mcts = Mcts(maxIters, maxTime, self.rolloutPolicy, TM)
 
+    def selectAction(self, actionNodes):
+        if self.argmax:
+            return argmaxPolicy(actionNodes)
+        else:
+            return epsilonGreedyPolicy(actionNodes)
+
     def playAction(self, game):
-        action = self.mcts.search(game)
+        actionNodes = self.mcts.search(game)
+        action = self.selectAction(actionNodes)
         game.playAction(action)

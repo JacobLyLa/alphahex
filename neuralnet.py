@@ -3,13 +3,16 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
 import tensorflow as tf
+from tensorflow.keras.layers import Dropout, BatchNormalization
 
-# regression model
+# regression model TODO: random initialization
 def createModel(size):
     model = Sequential()
-    model.add(Dense(size*size, input_dim=size*size, activation='relu'))
-    model.add(Dense(size*size, activation='softmax'))
-    model.compile(loss='mean_squared_error', optimizer=Adam(learning_rate=0.01))
+    model.add(Dense(size*size, input_dim=size*size+1, activation='relu', kernel_initializer='he_uniform'))
+    model.add(Dense(size*size, activation='relu', kernel_initializer='he_uniform', kernel_regularizer='l2'))
+    model.add(Dropout(0.2))
+    model.add(Dense(size*size, activation='softmax', kernel_initializer='he_uniform', kernel_regularizer='l2'))
+    model.compile(loss='categorical_crossentropy', optimizer=Adam(learning_rate=0.01), metrics=['accuracy'])
     return model
 
 def loadModel(path):
@@ -17,23 +20,25 @@ def loadModel(path):
 
 if __name__ == '__main__':
     from hex import HexGame
-    from mcts import MCTSPlayer, NeuralMCTSPlayer
-    from player import NeuralNetPlayer, RandomPlayer
+    from player import NeuralNetPlayer, RandomPlayer, MCTSPlayer, NeuralMCTSPlayer
     from tournament import Tournament
     rounds = 1
-    model = createModel()
-    nnMctsPlayer = NeuralMCTSPlayer(model=model, maxIters=30, maxTime=5)
-    randomPlayer = RandomPlayer()
-    tournament = Tournament(HexGame, nnMctsPlayer, randomPlayer)
+    boardSize = 7
+    model = loadModel('bestmodel.7')
+
+    nnMctsPlayer = NeuralMCTSPlayer(model=model, maxIters=15, maxTime=5)
+    mctsPlayer = MCTSPlayer(100, maxTime=5)
+    tournament = Tournament(HexGame, nnMctsPlayer, mctsPlayer, boardSize=boardSize, plot=True)
     tournament.run(rounds)
     wins, losses, draws = tournament.getResults()
     print(f"NN MCTS Player: {wins} wins, {losses} losses, {draws} draws")
 
     replay = nnMctsPlayer.mcts.replayBuffer
-    print(replay)
     print(f'Length of replay buffer: {len(replay)}')
 
     # train model
-    X = np.array([x[0] for x in replay])
-    y = np.array([x[1] for x in replay])
-    model.fit(X, y, epochs=10, verbose=1)
+    X = np.array([x[0] for x in replay]).reshape(len(replay), -1)
+    y = np.array([x[1] for x in replay]).reshape(len(replay), -1)
+    print(X)
+    print(y)
+    model.fit(X, y, epochs=2, verbose=1)

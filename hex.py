@@ -27,41 +27,23 @@ class HexGame(Game):
     def getStringState(self):
         return self.board.copy()
 
+    # add turn as the last element
     def getNNState(self):
-        board = self.board * self.turn
-        if self.turn == -1:
-            board = board.T
-        return board.reshape((1, -1))
-
-    def flipAction(self, action):
-        action = (action // self.size, action % self.size)
-        action = (action[1], action[0])
-        return action[0] * self.size + action[1]
-
-    def getActionsMask(self):
-        mask = np.zeros(shape=(self.board.shape[0] * self.board.shape[1]), dtype=np.int8)
-        # flatten the board
-        if self.turn == -1:
-            flatBoard = self.board.T.reshape(-1)
-        else:
-            flatBoard = self.board.reshape(-1)
-        for i in range(len(flatBoard)):
-            if flatBoard[i] == 0:
-                mask[i] = 1
-
-        return mask
+        board = self.board.flatten()
+        board = np.append(board, self.turn)
+        board = np.reshape(board, (1, -1))
+        return board
 
     def getActions(self):
         actions = []
         for x in range(self.board.shape[0]):
             for y in range(self.board.shape[1]):
                 if self.board[x, y] == 0:
-                    actions.append((x, y))
+                    actions.append(x * self.board.shape[1] + y)
         return actions
 
     def playAction(self, action):
-        # TODO: move to network class
-        # if action is int, convert to tuple
+        # TODO: move to network class if action is int, convert to tuple
         if isinstance(action, int) or isinstance(action, np.int64):
             action = (action // self.board.shape[1], action % self.board.shape[1])
 
@@ -78,7 +60,7 @@ class HexGame(Game):
         self.board[action] = self.turn
         self.turn = self.turn * -1
 
-        self.log.debug(f'player {self.turn} made move {action} resulting in board state:\n{self.board}\n')
+        self.log.debug(f'player {self.turn * -1} made move {action} resulting in board state:\n{self.board}\n')
 
         if self.plot:
             self.plotter.plot_action(action)
@@ -191,7 +173,7 @@ if __name__ == '__main__':
     from tournament import Tournament
     r1, r2 = RandomPlayer("Random1"), RandomPlayer("Random2")
     tournament = Tournament(HexGame, r1, r2, boardSize=5, plot=True)
-    tournament.run(5)
+    tournament.run(1)
     wins, losses, draws = tournament.getResults()
     print(f'{r1.name} won {wins} times, {r2.name} won {losses} times, and there were {draws} draws')
     plt.show() # to not close the plot after the game is finished

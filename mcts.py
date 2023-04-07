@@ -13,20 +13,15 @@ def randomRolloutPolicy(game):
     return random.choice(game.getActions())  
 
 # a part of batch rolloutpolicy, very similar to getAction in NeuralNetPlayer
-def getAction(game, probs):
-    gameSize = game.size * game.size
-    actionProbs = probs.reshape((1, gameSize))
-    legalActions = game.getActionsMask()
-    for i in range(len(actionProbs[0])):
-        if legalActions[i] == 0:
-            actionProbs[0][i] = 0
+def selectAction(game, actionProbs):
+    legalActionsMask = np.zeros(len(actionProbs))
+    for action in game.getActions():
+        legalActionsMask[action] = 1
+    actionProbs = actionProbs * legalActionsMask
 
     # normalize the action probabilities
     actionProbs = actionProbs / np.sum(actionProbs)
-    action = np.random.choice(len(actionProbs[0]), p=actionProbs[0])
-
-    if game.turn == -1:
-        action = game.flipAction(action)
+    action = np.random.choice(len(actionProbs), p=actionProbs)
 
     return action
 
@@ -36,12 +31,12 @@ def batchRolloutPolicy(game, TM):
     with TM.lock:
         # find index of this thread ignoring stopped threads
         thread_id = TM.threads.index(threading.current_thread())
-        TM.games.append(game.getNNState())
+        TM.games.append(game.getNNState()[0])
 
         if len(TM.games) >= len(TM.threads):
             # predict entire batch
             if not TM.calcDone:
-                TM.results = TM.model.predict(np.array(TM.games).reshape(len(TM.threads), gameSize), verbose=0)
+                TM.results = TM.model.predict(np.array(TM.games), verbose=0)
                 TM.condition.notify_all()
                 TM.calcDone = True
         else:
@@ -49,7 +44,7 @@ def batchRolloutPolicy(game, TM):
                 TM.condition.wait()
 
         # turn action distribution into action
-        TM.results[thread_id] = getAction(game, TM.results[thread_id])
+        TM.results[thread_id] = selectAction(game, TM.results[thread_id])
 
     # if all threads have come to this point, reset the batch
     TM.barrier.wait()
@@ -67,8 +62,9 @@ class Node:
         self.reward = 0
 
     def selectChild(self): # UCT
+        # TODO: add temperature here
         if self.turn == 1:
-            s = max(self.childNodes, key=lambda c: c.reward/c.visits + sqrt(2*log(self.visits)/c.visits)) # can add temperature here
+            s = max(self.childNodes, key=lambda c: c.reward/c.visits + sqrt(2*log(self.visits)/c.visits))
         else:
             s = min(self.childNodes, key=lambda c: c.reward/c.visits - sqrt(2*log(self.visits)/c.visits))
         return s
@@ -112,7 +108,6 @@ class Mcts:
             node = select(node, gameCopy)
             node = expand(node, gameCopy)
 
-            # rollout with batch or not
             if self.TM != None:
                 reward = self.batchRollout(gameCopy)
             else:
@@ -121,20 +116,16 @@ class Mcts:
             backpropagate(node, reward)
 
         actionNodes = sorted(root.childNodes, key=lambda c: c.visits)
-        bestAction = actionNodes[-1].action
 
         # Create action distribution probabilities
         totalVisits = sum(node.visits for node in actionNodes)
         actionDist = {node.action: node.visits/totalVisits for node in actionNodes}
-        actionDistNumpy = np.zeros((game.size, game.size))
+        actionDistNumpy = np.zeros(game.size * game.size)
         for action, prob in actionDist.items():
             actionDistNumpy[action] = prob
-        if game.getTurn() == -1: # TODO: refactor to make mcts agnostic to turn
-            actionDistNumpy = actionDistNumpy.T
-        actionDistNumpy = actionDistNumpy.reshape((1, game.size*game.size))
         self.replayBuffer.append((game.getNNState(), actionDistNumpy))
 
-        return bestAction
+        return actionNodes
 
     def rollout(self, gameCopy):
         while not gameCopy.isTerminal():
@@ -203,10 +194,25 @@ class ThreadManager:
         self.replayBufferList.append(result)
         logging.getLogger('THREADS').info(f"{threading.current_thread().name} done | {int(time.time() - self.startTime)}s | {len(self.replayBufferList)}/{self.batchSize} | winner={game.getResult()} | data points={len(result)}")
 
-        # when done just continue to call batchRolloutPolicy
-        while True: # yes super waste of resources, have to wait for the last game to finish
+        # when done continue to call batchRolloutPolicy
+        while True: # waste of resources. waits for the last game to finish
             batchRolloutPolicy(gameCopy, self)
             activeThreads = [t for t in self.threads if not t._is_stopped]
             if len(self.replayBufferList) > self.batchSize -1:
                 break
             self.barrier.wait()
+
+if __name__ == "__main__":
+    from player import RandomPlayer, MCTSPlayer
+    from hex import HexGame
+    from tournament import Tournament
+
+    # fight mcts vs random player
+    boardSize = 4
+    numGames = 10
+    randomPlayer = RandomPlayer()
+    mctsPlayer = MCTSPlayer(maxIters=100, maxTime=20)
+    tournament = Tournament(HexGame, mctsPlayer, randomPlayer, boardSize=boardSize, plot=False)
+    tournament.run(numGames)
+    wins, losses, draws = tournament.getResults()
+    print(f"mcts won {wins} times, lost {losses} times and drew {draws} times")
