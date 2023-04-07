@@ -171,9 +171,15 @@ class HexPlotter():
 if __name__ == '__main__':
     from player import RandomPlayer
     from tournament import Tournament
-    r1, r2 = RandomPlayer("Random1"), RandomPlayer("Random2")
-    tournament = Tournament(HexGame, r1, r2, boardSize=5, plot=True)
-    tournament.run(1)
-    wins, losses, draws = tournament.getResults()
-    print(f'{r1.name} won {wins} times, {r2.name} won {losses} times, and there were {draws} draws')
-    plt.show() # to not close the plot after the game is finished
+    num_players = 3
+    players = [RandomPlayer(f"Random{i}") for i in range(num_players)]
+    tournament = Tournament(HexGame, players, boardSize=5, plot=True)
+    tournament.run(2)
+    tournament.printResults()
+
+    # To not close the plot after the game is finished.
+    # Press ctrl+c to close all plots.
+    try:
+        plt.show()
+    except KeyboardInterrupt:
+        plt.close()

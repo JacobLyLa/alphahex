@@ -28,10 +28,9 @@ if __name__ == '__main__':
 
     nnMctsPlayer = NeuralMCTSPlayer(model=model, maxIters=15, maxTime=5)
     mctsPlayer = MCTSPlayer(100, maxTime=5)
-    tournament = Tournament(HexGame, nnMctsPlayer, mctsPlayer, boardSize=boardSize, plot=True)
+    tournament = Tournament(HexGame, [nnMctsPlayer, mctsPlayer], boardSize=boardSize, plot=True)
     tournament.run(rounds)
-    wins, losses, draws = tournament.getResults()
-    print(f"NN MCTS Player: {wins} wins, {losses} losses, {draws} draws")
+    tournament.printResults()
 
     replay = nnMctsPlayer.mcts.replayBuffer
     print(f'Length of replay buffer: {len(replay)}')

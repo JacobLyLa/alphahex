@@ -10,7 +10,7 @@ logging.basicConfig()
 # logging.getLogger().setLevel(logging.DEBUG)
 
 def randomRolloutPolicy(game):
-    return random.choice(game.getActions())  
+    return random.choice(game.getActions())
 
 # a part of batch rolloutpolicy, very similar to getAction in NeuralNetPlayer
 def selectAction(game, actionProbs):
@@ -171,7 +171,7 @@ class ThreadManager:
         self.games = []
         self.barrier = threading.Barrier(batchSize)
         self.lock = threading.Lock()
-        self.calcDone = False 
+        self.calcDone = False
         self.condition = threading.Condition(self.lock)
         self.results =  []
         self.threads = []
@@ -209,10 +209,11 @@ if __name__ == "__main__":
 
     # fight mcts vs random player
     boardSize = 4
-    numGames = 10
-    randomPlayer = RandomPlayer()
-    mctsPlayer = MCTSPlayer(maxIters=100, maxTime=20)
-    tournament = Tournament(HexGame, mctsPlayer, randomPlayer, boardSize=boardSize, plot=False)
-    tournament.run(numGames)
-    wins, losses, draws = tournament.getResults()
-    print(f"mcts won {wins} times, lost {losses} times and drew {draws} times")
+    numTournamentRounds = 5
+    players = [
+        MCTSPlayer(maxIters=100, maxTime=20),
+        RandomPlayer()
+    ]
+    tournament = Tournament(HexGame, players, boardSize=boardSize, plot=False)
+    tournament.run(numTournamentRounds)
+    tournament.printResults()
