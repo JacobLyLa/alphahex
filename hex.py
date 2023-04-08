@@ -12,7 +12,7 @@ logging.basicConfig()
 NEIGHBORS = [(0, 1), (1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1)]
 
 class HexGame(Game):
-    def __init__(self, player1, player2, size=4, plot=False):
+    def __init__(self, player1, player2, size=4, plot=False, ax=None):
         self.player1 = player1
         self.player2 = player2
         self.size = size
@@ -22,7 +22,7 @@ class HexGame(Game):
 
         self.plot = plot
         if plot:
-            self.plotter = HexPlotter(self)
+            self.plotter = HexPlotter(self, ax=ax)
 
     def getStringState(self):
         return self.board.copy()
@@ -130,7 +130,7 @@ class HexGame(Game):
 
 
 class HexPlotter():
-    def __init__(self, game: HexGame, distCorner=0.5, pauseAfterPlot=0.3):
+    def __init__(self, game: HexGame, distCorner=1, pauseAfterPlot=0.001, ax=None):
         self.game = game
         self.pauseAfterPlot = pauseAfterPlot
 
@@ -139,11 +139,13 @@ class HexPlotter():
         # distance between center and middle of side
         self.distSide = distCorner * sqrt(3) / 2
 
-        self.fig, self.ax = plt.subplots(1, figsize=(10, 8))
-        self.ax.set_title(f'Red player is {game.player1.name}, blue player is {game.player2.name}')
-        self.ax.axis('off')
+        if ax is None:
+            _, self.ax = plt.subplots(1, figsize=(10, 8))
+        else:
+            self.ax = ax
+
         self.ax.set_aspect('equal')
-        padding = 0.02
+        padding = 0.05
         self.ax.set_xlim(-self.distSide - padding, (3 * game.size - 2) * self.distSide + padding)
         self.ax.set_ylim(-(1.5 * game.size - 0.5) * self.distCorner - padding, self.distCorner + padding)
 
@@ -174,7 +176,7 @@ if __name__ == '__main__':
     num_players = 3
     players = [RandomPlayer(f"Random{i}") for i in range(num_players)]
     tournament = Tournament(HexGame, players, boardSize=5, plot=True)
-    tournament.run(2)
+    tournament.run(3)
     tournament.printResults()
 
     # To not close the plot after the game is finished.
