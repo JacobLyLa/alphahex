@@ -17,7 +17,7 @@ class ReinforcementLearner:
         self.boardSize = boardSize
         self.model = model
         self.replayBufferSize = replayBufferSize
-        
+
         self.batchesDone = 0
         self.randomWinrate = []
         self.mctsWinrate = []
@@ -59,7 +59,7 @@ class ReinforcementLearner:
 
         self.saveReplayBuffer(TM.replayBufferList)
         # normaly 1 minibatch per episode, but difficult when using batches
-        for i in range(max(self.parallelGames//2, 1)): 
+        for i in range(max(self.parallelGames//2, 1)):
             self.trainMiniBatch()
         if self.batchesDone % self.saveInterval == 0:
             self.testModel()
@@ -91,7 +91,7 @@ class ReinforcementLearner:
         dataName = f'replayBuffer{self.boardSize}.pickle'
         with open(dataName, 'rb') as f:
             replay = pickle.load(f)
-        
+
         X = np.array([x[0] for x in replay]).reshape(len(replay), -1)
         y = np.array([x[1] for x in replay]).reshape(len(replay), -1)
 
@@ -110,7 +110,7 @@ class ReinforcementLearner:
         print("Saved model to", modelName)
 
     def testModel(self):
-        numGames = 11
+        numTournamentRounds = 11
 
         newModelPlayer = NeuralNetPlayer(model=self.model, argmax=True)
         bestModel = loadModel(f'bestmodel.{self.boardSize}')
@@ -120,17 +120,19 @@ class ReinforcementLearner:
         nnMctsPlayer = NeuralMCTSPlayer(model=self.model, maxIters=50, maxTime=30, argmax=True)
 
         # test vs random
-        tournament = Tournament(HexGame, newModelPlayer, randomPlayer, boardSize=self.boardSize, plot=False)
-        tournament.run(numGames)
-        wins, losses, draws = tournament.getResults()
-        self.randomWinrate.append(wins/numGames)
+        tournament = Tournament(HexGame, [newModelPlayer, randomPlayer], boardSize=self.boardSize, plot=False)
+        tournament.run(numTournamentRounds)
+        wins, losses, draws = tournament.getPlayerResults(newModelPlayer)
+        winrate = wins / (wins + losses + draws)
+        self.randomWinrate.append(winrate)
         print(f"NeuralNet@{self.batchesDone} vs Random: {wins} wins, {losses} losses, {draws} draws")
-        
+
         # test vs mcts
-        tournament = Tournament(HexGame, newModelPlayer, mctsPlayer, boardSize=self.boardSize, plot=False)
-        tournament.run(numGames)
-        wins, losses, draws = tournament.getResults()
-        self.mctsWinrate.append(wins/numGames)
+        tournament = Tournament(HexGame, [newModelPlayer, mctsPlayer], boardSize=self.boardSize, plot=False)
+        tournament.run(numTournamentRounds)
+        wins, losses, draws = tournament.getPlayerResults(newModelPlayer)
+        winrate = wins / (wins + losses + draws)
+        self.mctsWinrate.append(winrate)
         print(f"NeuralNet@{self.batchesDone} vs MCTS: {wins} wins, {losses} losses, {draws} draws")
 
         '''
@@ -147,15 +149,16 @@ class ReinforcementLearner:
         # cant use argmax here because it will be the same games
         newModelPlayer.argmax = False
         oldModelPlayer.argmax = False
-        tournament = Tournament(HexGame, newModelPlayer, oldModelPlayer, boardSize=self.boardSize)
-        tournament.run(numGames)
-        wins, losses, draws = tournament.getResults()
-        self.bestModelWinrate.append(wins/numGames)
+        tournament = Tournament(HexGame, [newModelPlayer, oldModelPlayer], boardSize=self.boardSize)
+        tournament.run(numTournamentRounds)
+        wins, losses, draws = tournament.getPlayerResults(newModelPlayer)
+        winrate = wins / (wins + losses + draws)
+        self.bestModelWinrate.append(winrate)
         print(f"NeuralNet@{self.batchesDone} vs BestModel: {wins} wins, {losses} losses, {draws} draws")
 
         # this is simple version of TOPP
         # if we won more than 55% of the time, save as best model
-        if wins >= numGames * 0.5:
+        if wins >= (wins + losses + draws) * 0.5:
             bestModelName = f'bestmodel.{self.boardSize}'
             self.saveModel(self.model, bestModelName)
         else:
@@ -170,18 +173,18 @@ class ReinforcementLearner:
         # plot distribution of actions predictions of empty board
         plt.scatter(range(len(prediction[0])), prediction[0], label='prediction')
 
-        
+
         # plot distribution actions of empty board with mcts
         mc = Mcts(maxIters=2000, maxTime=10)
         mc.search(game)
         dist = mc.replayBuffer
-        plt.scatter(range(len(dist[0][-1])), dist[0][-1], label='mcts convergence')     
+        plt.scatter(range(len(dist[0][-1])), dist[0][-1], label='mcts convergence')
 
         # go through replay buffer and find average for each point when x is all zeros
         dataName = f'replayBuffer{self.boardSize}.pickle'
         with open(dataName, 'rb') as f:
             replay = pickle.load(f)
-        
+
         X = np.array([x[0] for x in replay]).reshape(len(replay), -1)
         y = np.array([x[1] for x in replay]).reshape(len(replay), -1)
 

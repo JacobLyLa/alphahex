@@ -44,6 +44,10 @@ class Tournament:
     def getResults(self):
         return self.playerWins, self.playerLosses, self.playerDraws
 
+    def getPlayerResults(self, player):
+        index = self.players.index(player)
+        return self.playerWins[index], self.playerLosses[index], self.playerDraws[index]
+
     def printResults(self):
         for i, player in enumerate(self.players):
             print(f'{player.name} won {self.playerWins[i]} times, lost {self.playerLosses[i]} times, and drew {self.playerDraws[i]} times')
