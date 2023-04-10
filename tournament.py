@@ -54,30 +54,29 @@ class Tournament:
         for row in range(len(self.players)):
             for col in range(len(self.players)):
                 ax: plt.Axes = self.axes[row, col]
+                ax.set_aspect('equal')
+
+                # Remove ticks and spines
                 ax.get_xaxis().set_ticks([])
                 ax.get_yaxis().set_ticks([])
-
-                ax.spines['top'].set_visible(False)
-                ax.spines['right'].set_visible(False)
-                ax.spines['bottom'].set_visible(False)
-                ax.spines['left'].set_visible(False)
+                for side in ['top', 'bottom', 'left', 'right']:
+                    ax.spines[side].set_visible(False)
 
                 distCorner = 1
                 distSide = distCorner * sqrt(3) / 2
 
-                ax.set_aspect('equal')
-                padding = 0.05
-                ax.set_xlim(-distSide - padding, (3 * self.boardSize - 2) * distSide + padding)
-                ax.set_ylim(-(1.5 * self.boardSize - 0.5) * distCorner - padding, distCorner + padding)
+                board_padding = 0.05
+                ax.set_xlim(-distSide - board_padding, (3 * self.boardSize - 2) * distSide + board_padding)
+                ax.set_ylim(-(1.5 * self.boardSize - 0.5) * distCorner - board_padding, distCorner + board_padding)
 
                 player1Name = self.players[row].name
                 player2Name = self.players[col].name
                 if row == 0:
-                    pad = 15
+                    padding = 15
                     ax.annotate(
                         player2Name,
                         xy=(0.5, 1),
-                        xytext=(0, pad),
+                        xytext=(0, padding),
                         xycoords='axes fraction',
                         textcoords='offset points',
                         size='large',
@@ -85,11 +84,11 @@ class Tournament:
                         va='baseline'
                     )
                 if col == 0:
-                    pad = 5
+                    padding = 5
                     ax.annotate(
                         player1Name,
                         xy=(0, 0.5),
-                        xytext=(-ax.yaxis.labelpad - pad, 0),
+                        xytext=(-ax.yaxis.labelpad - padding, 0),
                         xycoords=ax.yaxis.label,
                         textcoords='offset points',
                         size='large',

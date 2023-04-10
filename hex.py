@@ -166,7 +166,7 @@ class HexPlotter():
     def plot_hexagon(self, row, col, color='white'):
         x = 2 * self.distSide * col + self.distSide * row
         y = - 1.5 * self.distCorner * row
-        hex = RegularPolygon((x, y), numVertices=6, radius=self.distCorner, orientation=0, facecolor=color, edgecolor='black', alpha=0.8, linewidth=2)
+        hex = RegularPolygon((x, y), numVertices=6, radius=self.distCorner, orientation=0, facecolor=color, edgecolor='black', linewidth=2)
         self.ax.add_patch(hex)
 
 
