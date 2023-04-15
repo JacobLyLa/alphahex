@@ -9,6 +9,21 @@ from mcts import ThreadManager, batchRolloutPolicy, Mcts
 from neuralnet import createModel, loadModel
 from player import MCTSPlayer, NeuralMCTSPlayer, NeuralNetPlayer, RandomPlayer
 
+# given a game calculate number of rollouts
+def getIters(game):
+    ratio = game.turnCount / (game.size * game.size)
+    if ratio < 0.1:
+        return 5
+    elif ratio < 0.2:
+        return 10
+    elif ratio < 0.3:
+        return 15
+    elif ratio < 0.4:
+        return 20
+    else:
+        return 40
+
+
 class ReinforcementLearner:
     def __init__(self, saveInterval, miniBatchSize, parallelGames, boardSize, model, replayBufferSize):
         self.saveInterval = saveInterval
@@ -39,11 +54,11 @@ class ReinforcementLearner:
         TM = ThreadManager(self.parallelGames, self.boardSize, self.model)
         for i in range(TM.batchSize):
             # create player1
-            nnMctsPlayer = NeuralMCTSPlayer(model=TM.model, maxIters=50, maxTime=10, argmax=False, TM=TM)
+            nnMctsPlayer = NeuralMCTSPlayer(model=TM.model, maxIters=getIters, maxTime=1000, argmax=False, TM=TM)
             nnMctsPlayer.mcts.rolloutPolicy = batchRolloutPolicy
 
             # create player2
-            nnMctsPlayer2 = NeuralMCTSPlayer(model=TM.model, maxIters=50, maxTime=10, argmax=False, TM=TM)
+            nnMctsPlayer2 = NeuralMCTSPlayer(model=TM.model, maxIters=getIters, maxTime=1000, argmax=False, TM=TM)
             nnMctsPlayer2.mcts.rolloutPolicy = batchRolloutPolicy
 
             # create game and start thread
@@ -59,7 +74,7 @@ class ReinforcementLearner:
 
         self.saveReplayBuffer(TM.replayBufferList)
         # normaly 1 minibatch per episode, but difficult when using batches
-        for i in range(max(self.parallelGames//2, 1)):
+        for i in range(1):
             self.trainMiniBatch()
         if self.batchesDone % self.saveInterval == 0:
             self.testModel()
@@ -110,16 +125,13 @@ class ReinforcementLearner:
         print("Saved model to", modelName)
 
     def testModel(self):
-        numTournamentRounds = 11
-
+        numTournamentRounds = 5
         newModelPlayer = NeuralNetPlayer(model=self.model, argmax=True)
-        bestModel = loadModel(f'bestmodel.{self.boardSize}')
-        oldModelPlayer = NeuralNetPlayer(model=bestModel, argmax=True)
-        randomPlayer = RandomPlayer()
-        mctsPlayer = MCTSPlayer(maxIters=50, maxTime=30, argmax=True)
-        nnMctsPlayer = NeuralMCTSPlayer(model=self.model, maxIters=50, maxTime=30, argmax=True)
+    
+        # nnMctsPlayer = NeuralMCTSPlayer(model=self.model, maxIters=50, maxTime=30, argmax=True) very costly to test. doing in notebook
 
         # test vs random
+        randomPlayer = RandomPlayer()
         tournament = Tournament(HexGame, [newModelPlayer, randomPlayer], boardSize=self.boardSize, plot=False)
         tournament.run(numTournamentRounds)
         wins, losses, draws = tournament.getPlayerResults(newModelPlayer)
@@ -128,6 +140,7 @@ class ReinforcementLearner:
         print(f"NeuralNet@{self.batchesDone} vs Random: {wins} wins, {losses} losses, {draws} draws")
 
         # test vs mcts
+        mctsPlayer = MCTSPlayer(maxIters=50, maxTime=30, argmax=True)
         tournament = Tournament(HexGame, [newModelPlayer, mctsPlayer], boardSize=self.boardSize, plot=False)
         tournament.run(numTournamentRounds)
         wins, losses, draws = tournament.getPlayerResults(newModelPlayer)
@@ -135,20 +148,11 @@ class ReinforcementLearner:
         self.mctsWinrate.append(winrate)
         print(f"NeuralNet@{self.batchesDone} vs MCTS: {wins} wins, {losses} losses, {draws} draws")
 
-        '''
-        takes ungodly long
-        # nnMcts vs mcts (nnMcts should be better than plain mcts)
-        tournament = Tournament(HexGame, nnMctsPlayer, mctsPlayer, boardSize=self.boardSize, plot=False)
-        tournament.run(numGames)
-        wins, losses, draws = tournament.getResults()
-        ## self.nnMctsWinrate.append(wins/numGames)
-        print(f"nnMcts@{self.batchesDone} vs MCTS: {wins} wins, {losses} losses, {draws} draws")
-        '''
-
         # test vs previous best model
-        # cant use argmax here because it will be the same games
-        newModelPlayer.argmax = False
-        oldModelPlayer.argmax = False
+        bestModel = loadModel(f'bestmodel.{self.boardSize}')
+        oldModelPlayer = NeuralNetPlayer(model=bestModel, argmax=False)
+        # remake new model player to make argmax=False
+        newModelPlayer = NeuralNetPlayer(model=self.model, argmax=False)
         tournament = Tournament(HexGame, [newModelPlayer, oldModelPlayer], boardSize=self.boardSize)
         tournament.run(numTournamentRounds)
         wins, losses, draws = tournament.getPlayerResults(newModelPlayer)
@@ -172,7 +176,6 @@ class ReinforcementLearner:
 
         # plot distribution of actions predictions of empty board
         plt.scatter(range(len(prediction[0])), prediction[0], label='prediction')
-
 
         # plot distribution actions of empty board with mcts
         mc = Mcts(maxIters=2000, maxTime=10)
@@ -211,17 +214,18 @@ class ReinforcementLearner:
 
 
 def main():
-    parallelGames = 64
+    parallelGames = 32
     boardSize = 3
     saveInterval = 1
-    miniBatchSize = 32
-    replayBufferSize = boardSize*boardSize*parallelGames*4
+    miniBatchSize = 64
+    replayBufferSize = boardSize*boardSize*parallelGames*10
 
     modelName = f'model.{boardSize}'
     # initialModel = loadModel(modelName)
     initialModel = createModel(size=boardSize)
 
     RL = ReinforcementLearner(saveInterval, miniBatchSize, parallelGames, boardSize, initialModel, replayBufferSize)
+    RL.testModel()
     for i in range(100):
         RL.playBatch()
 
