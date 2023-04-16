@@ -18,6 +18,7 @@ class HexGame(Game):
         self.size = size
         self.board = np.zeros(shape=(size,size), dtype=np.int8)
         self.turn = 1
+        self.turnCount = 1
         self.log = logging.getLogger(__name__)
 
         self.plot = plot
@@ -59,6 +60,7 @@ class HexGame(Game):
 
         self.board[action] = self.turn
         self.turn = self.turn * -1
+        self.turnCount += 1
 
         self.log.debug(f'player {self.turn * -1} made move {action} resulting in board state:\n{self.board}\n')
 
@@ -79,6 +81,7 @@ class HexGame(Game):
     def copy(self):
         gameCopy = HexGame(self.player1, self.player2, size=self.size)
         gameCopy.turn = self.turn
+        gameCopy.turnCount = self.turnCount
         gameCopy.board = self.board.copy()
         return gameCopy
 

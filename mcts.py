@@ -19,9 +19,16 @@ def selectAction(game, actionProbs):
         legalActionsMask[action] = 1
     actionProbs = actionProbs * legalActionsMask
 
+    '''
     # normalize the action probabilities
     actionProbs = actionProbs / np.sum(actionProbs)
     action = np.random.choice(len(actionProbs), p=actionProbs)
+    '''
+    # epsilon greedy
+    if random.random() < 0.1:
+        action = random.choice(game.getActions())
+    else:
+        action = np.argmax(actionProbs)
 
     return action
 
@@ -100,7 +107,13 @@ class Mcts:
         root = Node(game)
         start = time.time()
         iters = 0
-        while (time.time() - start < self.maxTime) and iters < self.maxIters:
+        # check if maxIters is a function
+        if callable(self.maxIters):
+            maxIters = self.maxIters(game)
+        else:
+            maxIters = self.maxIters
+
+        while (time.time() - start < self.maxTime) and iters < maxIters:
             iters += 1
             node = root
             gameCopy = game.copy()
