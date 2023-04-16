@@ -5,7 +5,7 @@ from tensorflow.keras.optimizers import Adam
 import tensorflow as tf
 from tensorflow.keras.layers import Dropout, BatchNormalization
 
-# regression model TODO: random initialization
+# regression model
 def createModel(size):
     model = Sequential()
     model.add(Dense(size*size, input_dim=size*size+1, activation='relu', kernel_initializer='he_uniform'))

@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Models
+*.pb
+*.index
+*.data-00000-of-00001
+*.pickle
