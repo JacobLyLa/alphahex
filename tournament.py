@@ -9,6 +9,8 @@ class Tournament:
         self.playerWins = [0] * len(players)
         self.playerLosses = [0] * len(players)
         self.playerDraws = [0] * len(players)
+        self.startPlayerWins = 0
+        self.startPlayerLosses = 0
         self.plot = plot
 
         if plot:
@@ -30,6 +32,10 @@ class Tournament:
                     )
                     game.playGame()
                     result = game.getResult()
+                    if result == 1:
+                        self.startPlayerWins += 1
+                    elif result == -1:
+                        self.startPlayerLosses += 1
 
                     if result == 1:
                         self.playerWins[i] += 1
@@ -49,6 +55,7 @@ class Tournament:
         return self.playerWins[index], self.playerLosses[index], self.playerDraws[index]
 
     def printResults(self):
+        print(f'Starting player won {self.startPlayerWins} times and lost {self.startPlayerLosses} times')
         for i, player in enumerate(self.players):
             print(f'{player.name} won {self.playerWins[i]} times, lost {self.playerLosses[i]} times, and drew {self.playerDraws[i]} times')
 

@@ -99,12 +99,13 @@ class Mcts:
         self.maxTime = maxTime
         self.rolloutPolicy = rolloutPolicy
         self.TM = TM
+        self.root = None
         self.log = logging.getLogger("MCTS")
         self.log.setLevel(logging.INFO)
         self.replayBuffer = []
 
     def search(self, game):
-        root = Node(game)
+        self.root = Node(game)
         start = time.time()
         iters = 0
         # check if maxIters is a function
@@ -115,7 +116,7 @@ class Mcts:
 
         while (time.time() - start < self.maxTime) and iters < maxIters:
             iters += 1
-            node = root
+            node = self.root
             gameCopy = game.copy()
 
             node = select(node, gameCopy)
@@ -128,7 +129,7 @@ class Mcts:
 
             backpropagate(node, reward)
 
-        actionNodes = sorted(root.childNodes, key=lambda c: c.visits)
+        actionNodes = sorted(self.root.childNodes, key=lambda c: c.visits)
 
         # Create action distribution probabilities
         totalVisits = sum(node.visits for node in actionNodes)
@@ -136,7 +137,7 @@ class Mcts:
         actionDistNumpy = np.zeros(game.size * game.size)
         for action, prob in actionDist.items():
             actionDistNumpy[action] = prob
-        self.replayBuffer.append((game.getNNState(), actionDistNumpy))
+        self.replayBuffer.append([game.getNNState(), actionDistNumpy, game.getTurn()*-1]) # assume we lose, winner updates its own replay buffer
 
         return actionNodes
 

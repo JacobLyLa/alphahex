@@ -9,7 +9,7 @@ def epsilonGreedyPolicy(actionNodes, epsilon=0.1):
     if random.random() < epsilon:
         return random.choice(actionNodes).action
     else:
-        return argmaxPolicy(actionNodes)
+        return probabilsticPolicy(actionNodes)
 
 def probabilsticPolicy(actionNodes):
     actionProbs = np.array([node.visits for node in actionNodes])
@@ -69,8 +69,12 @@ class NeuralNetPlayer(Player):
         if self.argmax:
             action = np.argmax(actionProbs)
         else:
-            actionProbs = actionProbs / np.sum(actionProbs)
-            action = np.random.choice(len(actionProbs), p=actionProbs)
+            # 90% chance of argmax, otherwise probabilistic
+            if random.random() < 0.9:
+                action = np.argmax(actionProbs)
+            else:
+                actionProbs = actionProbs / np.sum(actionProbs)
+                action = np.random.choice(len(actionProbs), p=actionProbs)
 
         return action
 
@@ -94,6 +98,15 @@ class MCTSPlayer(Player):
         actionNodes = self.mcts.search(game)
         action = self.selectAction(actionNodes)
         game.playAction(action)
+        # if the game is over now, update replaybuffer with winner
+        if game.isTerminal():
+            # divide by 2 and round up
+            movesPlayed = (game.gameLength + 1) // 2
+            winner = game.getResult()
+            for i in range(movesPlayed):
+                # update last element in relevant replaybuffer entry
+                self.mcts.replayBuffer[-i-1][-1] = winner
+
 
 class NeuralMCTSPlayer(Player):
     def __init__(self, model, maxIters, maxTime, argmax=True, name="NeuralMCTS", TM=None):

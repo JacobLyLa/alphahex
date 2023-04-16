@@ -11,17 +11,17 @@ from player import MCTSPlayer, NeuralMCTSPlayer, NeuralNetPlayer, RandomPlayer
 
 # given a game calculate number of rollouts
 def getIters(game):
-    ratio = game.turnCount / (game.size * game.size)
+    ratio = game.gameLength / (game.size * game.size)
     if ratio < 0.1:
-        return 5
+        return 5*3
     elif ratio < 0.2:
-        return 10
+        return 10*3
     elif ratio < 0.3:
-        return 15
+        return 15*3
     elif ratio < 0.4:
-        return 20
+        return 20*3
     else:
-        return 40
+        return 40*3
 
 
 class ReinforcementLearner:
@@ -74,12 +74,12 @@ class ReinforcementLearner:
 
         self.saveReplayBuffer(TM.replayBufferList)
         # normaly 1 minibatch per episode, but difficult when using batches
-        for i in range(1):
+        for i in range(5):
             self.trainMiniBatch()
         if self.batchesDone % self.saveInterval == 0:
             self.testModel()
             self.saveModel(self.model, f'model.{self.boardSize}')
-        # self.analyze()
+        self.analyze()
         self.batchesDone += 1
 
     def saveReplayBuffer(self, replayBufferList):
@@ -150,9 +150,9 @@ class ReinforcementLearner:
 
         # test vs previous best model
         bestModel = loadModel(f'bestmodel.{self.boardSize}')
-        oldModelPlayer = NeuralNetPlayer(model=bestModel, argmax=False)
-        # remake new model player to make argmax=False
+        # remake new model player to make argmax=False (otherwise the games wouldve been deterministic and all equal)
         newModelPlayer = NeuralNetPlayer(model=self.model, argmax=False)
+        oldModelPlayer = NeuralNetPlayer(model=bestModel, argmax=False)
         tournament = Tournament(HexGame, [newModelPlayer, oldModelPlayer], boardSize=self.boardSize)
         tournament.run(numTournamentRounds)
         wins, losses, draws = tournament.getPlayerResults(newModelPlayer)
@@ -178,10 +178,10 @@ class ReinforcementLearner:
         plt.scatter(range(len(prediction[0])), prediction[0], label='prediction')
 
         # plot distribution actions of empty board with mcts
-        mc = Mcts(maxIters=2000, maxTime=10)
+        mc = Mcts(maxIters=100, maxTime=10)
         mc.search(game)
         dist = mc.replayBuffer
-        plt.scatter(range(len(dist[0][-1])), dist[0][-1], label='mcts convergence')
+        plt.scatter(range(len(dist[0][1])), dist[0][1], label='mcts convergence')
 
         # go through replay buffer and find average for each point when x is all zeros
         dataName = f'replayBuffer{self.boardSize}.pickle'
@@ -218,7 +218,7 @@ def main():
     boardSize = 3
     saveInterval = 1
     miniBatchSize = 64
-    replayBufferSize = boardSize*boardSize*parallelGames*10
+    replayBufferSize = boardSize*boardSize*parallelGames*1
 
     modelName = f'model.{boardSize}'
     # initialModel = loadModel(modelName)
