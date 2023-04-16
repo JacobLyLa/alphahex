@@ -28,6 +28,8 @@ def createModel(size):
     model.add(BatchNormalization())
     # Add another dropout layer
     model.add(Dropout(0.3))
+    # Final layer is a softmax layer for all possible moves
+    model.add(Dense(size*size, activation='softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 

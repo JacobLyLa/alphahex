@@ -79,7 +79,7 @@ class ReinforcementLearner:
         if self.batchesDone % self.saveInterval == 0:
             self.testModel()
             self.saveModel(self.model, f'model.{self.boardSize}')
-        self.analyze()
+        # self.analyze()
         self.batchesDone += 1
 
     def saveReplayBuffer(self, replayBufferList):
@@ -118,7 +118,10 @@ class ReinforcementLearner:
         X_mini = X[idx]
         y_mini = y[idx]
 
-        self.model.fit(X_mini, y_mini, epochs=1, verbose=1)
+        self.model.fit(X_mini, y_mini, epochs=1, verbose=0)
+        # test accuracy on full replay buffer
+        loss, acc = self.model.evaluate(X, y, verbose=0)
+        print("Accuracy on full replay buffer:", acc)
 
     def saveModel(self, model, modelName):
         model.save(modelName)
@@ -214,11 +217,11 @@ class ReinforcementLearner:
 
 
 def main():
-    parallelGames = 32
+    parallelGames = 64
     boardSize = 3
     saveInterval = 1
     miniBatchSize = 64
-    replayBufferSize = boardSize*boardSize*parallelGames*1
+    replayBufferSize = boardSize*boardSize*parallelGames*4
 
     modelName = f'model.{boardSize}'
     # initialModel = loadModel(modelName)
