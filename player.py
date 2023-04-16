@@ -109,12 +109,16 @@ class MCTSPlayer(Player):
 
 
 class NeuralMCTSPlayer(Player):
-    def __init__(self, model, maxIters, maxTime, argmax=True, name="NeuralMCTS", TM=None):
+    def __init__(self, model, maxIters, maxTime, argmax=True, criticModel=None, name="NeuralMCTS", TM=None):
         super().__init__(name)
         self.model = model
         self.argmax = argmax
-        self.rolloutPolicy = lambda game: NeuralNetPlayer(model=model, argmax=False, name="RolloutPolicy").getAction(game)
-        self.mcts = Mcts(maxIters, maxTime, self.rolloutPolicy, TM)
+        rolloutPolicy = lambda game: NeuralNetPlayer(model=model, argmax=False, name="RolloutPolicy").getAction(game)
+        criticRollout = None
+        if criticModel is not None:
+            criticRollout = lambda game: criticModel.predict(game.getNNState(), verbose=0)[0] * 2 - 1
+            
+        self.mcts = Mcts(maxIters, maxTime, rolloutPolicy, criticRollout=criticRollout, TM=TM)
 
     def selectAction(self, actionNodes):
         if self.argmax:

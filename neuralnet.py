@@ -29,8 +29,8 @@ def createModel(size):
     # Add another dropout layer
     model.add(Dropout(0.3))
     # Final layer is a softmax layer for all possible moves
-    model.add(Dense(size*size, activation='softmax'))
-    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+    model.add(Dense(size*size, activation='softmax', kernel_initializer='he_uniform'))
+    model.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
     return model
 
 # CRITIC

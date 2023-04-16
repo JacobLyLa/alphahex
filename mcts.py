@@ -14,8 +14,11 @@ def randomRolloutPolicy(game):
 
 # a part of batch rolloutpolicy, very similar to getAction in NeuralNetPlayer
 def selectAction(game, actionProbs):
+    actions = game.getActions()
+    if len(actions) == 0:
+        return None
     legalActionsMask = np.zeros(len(actionProbs))
-    for action in game.getActions():
+    for action in actions:
         legalActionsMask[action] = 1
     actionProbs = actionProbs * legalActionsMask
 
@@ -26,7 +29,7 @@ def selectAction(game, actionProbs):
     '''
     # epsilon greedy
     if random.random() < 0.1:
-        action = random.choice(game.getActions())
+        action = random.choice(actions)
     else:
         action = np.argmax(actionProbs)
 
@@ -60,6 +63,7 @@ def batchRolloutPolicy(game, TM):
 
 class Node:
     def __init__(self, game, action=None, parent=None):
+        self.game = game.copy()
         self.action = action
         self.parentNode = parent
         self.childNodes = []
@@ -94,10 +98,11 @@ class Node:
 
 
 class Mcts:
-    def __init__(self, maxIters, maxTime, rolloutPolicy=randomRolloutPolicy, TM=None):
+    def __init__(self, maxIters, maxTime, rolloutPolicy=randomRolloutPolicy, criticRollout=None, TM=None):
         self.maxIters = maxIters
         self.maxTime = maxTime
         self.rolloutPolicy = rolloutPolicy
+        self.criticRollout = criticRollout
         self.TM = TM
         self.root = None
         self.log = logging.getLogger("MCTS")
@@ -105,7 +110,19 @@ class Mcts:
         self.replayBuffer = []
 
     def search(self, game):
-        self.root = Node(game)
+        # check if there is a child node in child nodes in root that is the same as the current game state
+        found = False
+        if self.root != None:
+            for child in self.root.childNodes:
+                for childChild in child.childNodes:
+                    if (childChild.game.getNNState() == game.getNNState()).all():
+                        self.root = childChild
+                        found = True
+                        break
+                if found:
+                    break
+        if not found:
+            self.root = Node(game)
         start = time.time()
         iters = 0
         # check if maxIters is a function
@@ -128,7 +145,6 @@ class Mcts:
                 reward = self.rollout(gameCopy)
 
             backpropagate(node, reward)
-
         actionNodes = sorted(self.root.childNodes, key=lambda c: c.visits)
 
         # Create action distribution probabilities
@@ -142,11 +158,24 @@ class Mcts:
         return actionNodes
 
     def rollout(self, gameCopy):
+        # if not terminal and there is critic model, x% chance of using critic model
+        if self.criticRollout != None and not gameCopy.isTerminal() and random.random() < 0.2:
+            return self.criticRollout(gameCopy)
         while not gameCopy.isTerminal():
             gameCopy.playAction(self.rolloutPolicy(gameCopy))
         return gameCopy.getResult()
 
     def batchRollout(self, gameCopy):
+        # if not terminal and there is critic model, x% chance of using critic model
+        if self.criticRollout != None and not gameCopy.isTerminal() and random.random() < 0.2:
+            return self.criticRollout(gameCopy)
+        # if game is terminal this thread will just continue ignoring other threads
+        # join the batch so that the other threads can continue
+        if gameCopy.isTerminal():
+            self.rolloutPolicy(gameCopy, self.TM)
+            self.TM.barrier.wait()
+            return gameCopy.getResult()
+
         activeThreads = [t for t in self.TM.threads if not t._is_stopped]
         threadid = activeThreads.index(threading.current_thread())
         while not gameCopy.isTerminal():
