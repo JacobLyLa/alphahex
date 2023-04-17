@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import RegularPolygon
 from math import sqrt
 from game import Game
+import tensorflow as tf
 logging.basicConfig()
 # logging.getLogger().setLevel(logging.DEBUG)
 
@@ -25,24 +26,31 @@ class HexGame(Game):
         if plot:
             self.plotter = HexPlotter(self, ax=ax)
 
+    def equals(self, other):
+        return np.array_equal(self.board, other.board) and self.turn == other.turn and self.gameLength == other.gameLength
+
     def getStringState(self):
         return self.board.copy()
 
     # add turn as the last element
     def getNNState(self):
-        board = self.board.flatten()
-        # board = np.append(board, self.turn)
-        # append self.turn self.size times
-        board = np.append(board, [self.turn] * self.size)
-        board = np.reshape(board, (1, -1))
-        return board
+        # first bitmap is current players stones, second bitmap is opponents stones, third bitmap is turn empty space, fourth bitmap is turn
+        firstMap = np.where(self.board == self.turn, 1, 0)
+        secondMap = np.where(self.board == self.turn * -1, 1, 0)
+        thirdMap = np.where(self.board == 0, 1, 0)
+        fourthMap = np.ones(shape=self.board.shape) * self.turn
+        board = np.stack((firstMap, secondMap, thirdMap, fourthMap), axis=2)
+        tensor = tf.convert_to_tensor(np.array([board]).reshape(1, -1), dtype=tf.float32)
+        return tensor
 
     def getActions(self):
+        board = self.board
         actions = []
-        for x in range(self.board.shape[0]):
-            for y in range(self.board.shape[1]):
-                if self.board[x, y] == 0:
+        for x in range(board.shape[0]):
+            for y in range(board.shape[1]):
+                if board[x, y] == 0:
                     actions.append(x * self.board.shape[1] + y)
+
         return actions
 
     def playAction(self, action):

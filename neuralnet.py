@@ -14,43 +14,18 @@ from tensorflow.keras.layers import LeakyReLU
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.optimizers import RMSprop
 
-# ANET
 def createModel(size):
     model = Sequential()
-    model.add(Dense(size*size, input_dim=size*size+size, activation='relu'))
+    model.add(Dense(size*size, input_dim=size*size*4, activation='relu'))
+    model.add(Dropout(0.2))
     model.add(BatchNormalization())
-    # dropout layer
-    model.add(Dropout(0.3))
-    model.add(Dense(size, activation='relu'))
+    model.add(Dense(size*size, activation='relu'))
+    model.add(Dropout(0.2))
     model.add(BatchNormalization())
-    # Add another Dense layer
-    model.add(Dense(size, activation='relu'))
-    model.add(BatchNormalization())
-    # Add another dropout layer
-    model.add(Dropout(0.3))
-    # Final layer is a softmax layer for all possible moves
     model.add(Dense(size*size, activation='softmax', kernel_initializer='he_uniform'))
-    model.compile(loss='categorical_crossentropy', optimizer='rmsprop', metrics=['accuracy'])
+    model.compile(loss='categorical_crossentropy', optimizer='Adam', metrics=['accuracy'])
     return model
 
-# CRITIC
-def createCriticModel(size):
-    model = Sequential()
-    model.add(Dense(size*size, input_dim=size*size+size, activation='relu'))
-    model.add(BatchNormalization())
-    # dropout layer
-    model.add(Dropout(0.3))
-    model.add(Dense(size, activation='relu'))
-    model.add(BatchNormalization())
-    # Add another Dense layer
-    model.add(Dense(size, activation='relu'))
-    model.add(BatchNormalization())
-    # Add another dropout layer
-    model.add(Dropout(0.3))
-    # final layer is a singular value from 0 to 1
-    model.add(Dense(1, activation='sigmoid', kernel_initializer='he_uniform'))
-    model.compile(optimizer='rmsprop', loss='binary_crossentropy', metrics=['accuracy'])
-    return model
 
 def loadModel(path):
     return tf.keras.models.load_model(path)

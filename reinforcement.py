@@ -1,48 +1,29 @@
 import pickle
-import threading
 import numpy as np
 import matplotlib.pyplot as plt
 import time
 
 from tournament import Tournament
 from hex import HexGame
-from mcts import ThreadManager, batchRolloutPolicy, Mcts
-from neuralnet import createModel, loadModel, createCriticModel
+from mcts import Mcts
+from neuralnet import createModel, loadModel
 from player import MCTSPlayer, NeuralMCTSPlayer, NeuralNetPlayer, RandomPlayer
-
-# given a game calculate number of rollouts
-def getIters(game):
-    ratio = game.gameLength / (game.size * game.size)
-    if ratio < 0.1:
-        return 5*4
-    elif ratio < 0.2:
-        return 10*4
-    elif ratio < 0.3:
-        return 15*4
-    elif ratio < 0.4:
-        return 20*4
-    else:
-        return 40*4
 
 
 class ReinforcementLearner:
-    def __init__(self, saveInterval, miniBatchSize, parallelGames, boardSize, model, replayBufferSize):
+    def __init__(self, avgGameTime, saveInterval, miniBatchSize, boardSize, model, replayBufferSize):
         self.saveInterval = saveInterval
         self.miniBatchSize = miniBatchSize
-        self.parallelGames = parallelGames
         self.boardSize = boardSize
         self.model = model
-        # self.criticModel = createCriticModel(boardSize)
-        self.criticModel = None
         self.replayBufferSize = replayBufferSize
 
-        self.batchesDone = 0
+        self.episodesDone = 0
         self.randomWinrate = []
         self.mctsWinrate = []
         self.bestModelWinrate = []
 
         # calculate time per move
-        avgGameTime = 600
         maxMoves = boardSize * boardSize
         self.timePerMove = avgGameTime / maxMoves
         print("Time per move:", self.timePerMove)
@@ -55,64 +36,44 @@ class ReinforcementLearner:
         # save this model as the best model
         self.saveModel(model, f'bestmodel.{self.boardSize}')
 
-        # always use batch rollouts when learning
-        self.TM = ThreadManager(batchSize=parallelGames, boardSize=boardSize, model=model)
-
-    def playBatch(self):
+    def oneIteration(self):
         start = time.time()
-        print("Starting batch", self.batchesDone)
+        print("Starting episode", self.episodesDone)
         print("----------------------------------------")
-        TM = ThreadManager(self.parallelGames, self.boardSize, self.model)
-        for i in range(TM.batchSize):
-            # TODO: IF WE USE THE SAME PLAYER IN THE GAME, WE CAN USE THE SAME MCTS TREE. UPDATE MCTS TO ONLY LOOK FOR FIRST CHILD, NOT GRANDCHILD
+        # create player to play self
+        nnMctsPlayer = NeuralMCTSPlayer(model=self.model, maxIters=99999, maxTime=self.timePerMove, argmax=False)
 
-            # create player1
-            nnMctsPlayer = NeuralMCTSPlayer(model=TM.model, maxIters=99999, maxTime=self.timePerMove, argmax=False, TM=TM)
-            nnMctsPlayer.mcts.rolloutPolicy = batchRolloutPolicy
-
-            # create game and start thread
-            game = HexGame(nnMctsPlayer, nnMctsPlayer, size=TM.boardSize)
-            t = threading.Thread(target=TM.threadJob, args=(game,))
-            TM.threads.append(t)
-
-        for t in TM.threads:
-            t.start()
-
-        for t in TM.threads:
-            t.join()
-
+        # create game
+        game = HexGame(nnMctsPlayer, nnMctsPlayer, size=self.boardSize)
+        game.playGame()
         end = time.time()
-        print("Batch", self.batchesDone, "took", end - start, "seconds")
+        print("Episode", self.episodesDone, "took", end - start, "seconds")
 
-        self.saveReplayBuffer(TM.replayBufferList)
-        # normaly 1 minibatch per episode, but probably more when using batches
-        for i in range(1):
-            self.trainMiniBatch()
-        if self.batchesDone % self.saveInterval == 0:
+        self.saveReplayBuffer(nnMctsPlayer.mcts.replayBuffer)
+        self.trainMiniBatch()
+        if self.episodesDone % self.saveInterval == 0:
             self.testModel()
             self.saveModel(self.model, f'model.{self.boardSize}')
         # self.analyze()
-        self.batchesDone += 1
+        self.episodesDone += 1
 
-    def saveReplayBuffer(self, replayBufferList):
-        replayBufferList = [item for sublist in replayBufferList for item in sublist]
-
+    def saveReplayBuffer(self, episodeBuffer):
         # if file exists, load and append
         dataName = f'replayBuffer{self.boardSize}.pickle'
         try:
             with open(dataName, "rb") as f:
-                replayBufferList = pickle.load(f) + replayBufferList
+                replayBuffer = pickle.load(f) + episodeBuffer 
         except:
-            pass
+            print("No replay buffer found!")
 
         # keep only the last replayBufferSize games if full
-        if len(replayBufferList) > self.replayBufferSize:
-            replayBufferList = replayBufferList[-self.replayBufferSize:]
+        if len(replayBuffer) > self.replayBufferSize:
+            replayBuffer = replayBuffer[-self.replayBufferSize:]
 
         with open(dataName, "wb") as f:
-            pickle.dump(replayBufferList, f)
+            pickle.dump(replayBuffer, f)
 
-        print("Saved", len(replayBufferList), "data points to", dataName)
+        print("Saved", len(replayBuffer), "data points to", dataName)
 
     def trainMiniBatch(self):
         dataName = f'replayBuffer{self.boardSize}.pickle'
@@ -130,32 +91,12 @@ class ReinforcementLearner:
         X_mini = X[idx]
         y_mini = y[idx]
 
-        self.model.fit(X_mini, y_mini, epochs=3, verbose=0)
+        self.model.fit(X_mini, y_mini, epochs=1, verbose=0)
         # test accuracy on full replay buffer
+
         loss, acc = self.model.evaluate(X, y, verbose=0)
         print("Accuracy on full replay buffer:", acc)
-
-        if not self.criticModel:
-            return
-
-        # also train critic
-        X = [r[0] for r in replay]
-        y = [r[-1] for r in replay]
-        X = np.array(X).reshape(len(X), -1)
-        y = np.array(y).reshape(-1, 1)
-        y[y == -1] = 0 # for all -1's in y set it to 0
-        # choose mini batch
-        if len(X) < self.miniBatchSize:
-            idx = np.random.choice(len(X), size=len(X), replace=False)
-        else:
-            idx = np.random.choice(len(X), size=self.miniBatchSize, replace=False)
-        X_mini = X[idx]
-        y_mini = y[idx]
-
-        self.criticModel.fit(X_mini, y_mini, epochs=1, verbose=0)
-        # print accuracy
-        loss, acc = self.criticModel.evaluate(X, y, verbose=0)
-        print("Critic accuracy on full replay buffer:", acc)
+        print("Loss on full replay buffer:", loss)
 
 
     def saveModel(self, model, modelName):
@@ -163,7 +104,7 @@ class ReinforcementLearner:
         print("Saved model to", modelName)
 
     def testModel(self):
-        numTournamentRounds = 10
+        numTournamentRounds = 25
         newModelPlayer = NeuralNetPlayer(model=self.model, argmax=True)
 
         # test vs random
@@ -173,21 +114,22 @@ class ReinforcementLearner:
         wins, losses, draws = tournament.getPlayerResults(newModelPlayer)
         winrate = wins / (wins + losses + draws)
         self.randomWinrate.append(winrate)
-        print(f"NeuralNet@{self.batchesDone} vs Random: {wins} wins, {losses} losses, {draws} draws")
+        print(f"NeuralNet@{self.episodesDone} vs Random: {wins} wins, {losses} losses, {draws} draws")
 
+        '''
         # test vs mcts
-        mctsPlayer = MCTSPlayer(maxIters=50, maxTime=30, argmax=True)
+        mctsPlayer = MCTSPlayer(maxIters=50, maxTime=10, argmax=True)
         tournament = Tournament(HexGame, [newModelPlayer, mctsPlayer], boardSize=self.boardSize, plot=False)
         tournament.run(numTournamentRounds)
         wins, losses, draws = tournament.getPlayerResults(newModelPlayer)
         winrate = wins / (wins + losses + draws)
         self.mctsWinrate.append(winrate)
-        print(f"NeuralNet@{self.batchesDone} vs MCTS: {wins} wins, {losses} losses, {draws} draws")
+        print(f"NeuralNet@{self.episodesDone} vs MCTS: {wins} wins, {losses} losses, {draws} draws")
+        '''
 
     def analyze(self):
         game = HexGame(None, None, size=self.boardSize)
-        board = game.getNNState()
-        prediction = self.model.predict(board)
+        prediction = self.model(game.getNNState())
 
         # plot distribution of actions predictions of empty board
         plt.scatter(range(len(prediction[0])), prediction[0], label='prediction')
@@ -229,20 +171,19 @@ class ReinforcementLearner:
 
 
 def main():
-    parallelGames = 1 # compare iterations to 1
-    boardSize = 5
+    avgGameTime = 10
+    boardSize = 3
     saveInterval = 1
-    miniBatchSize = 64
-    replayBufferSize = boardSize*boardSize*parallelGames*10
+    miniBatchSize = 2**boardSize # 2,4,8,16,32...
+    replayBufferSize = boardSize*boardSize*10
 
     modelName = f'model.{boardSize}'
-    # initialModel = loadModel(modelName)
     initialModel = createModel(size=boardSize)
 
-    RL = ReinforcementLearner(saveInterval, miniBatchSize, parallelGames, boardSize, initialModel, replayBufferSize)
-    # RL.testModel()
+    RL = ReinforcementLearner(avgGameTime, saveInterval, miniBatchSize, boardSize, initialModel, replayBufferSize)
+    RL.testModel()
     for i in range(100):
-        RL.playBatch()
+        RL.oneIteration()
 
 if __name__ == "__main__":
     main()

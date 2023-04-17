@@ -1,6 +1,5 @@
 import logging
 import random
-import threading
 import time
 from math import log, sqrt
 
@@ -11,55 +10,6 @@ logging.basicConfig()
 
 def randomRolloutPolicy(game):
     return random.choice(game.getActions())
-
-# a part of batch rolloutpolicy, very similar to getAction in NeuralNetPlayer
-def selectAction(game, actionProbs):
-    actions = game.getActions()
-    if len(actions) == 0:
-        return None
-    legalActionsMask = np.zeros(len(actionProbs))
-    for action in actions:
-        legalActionsMask[action] = 1
-    actionProbs = actionProbs * legalActionsMask
-
-    '''
-    # normalize the action probabilities
-    actionProbs = actionProbs / np.sum(actionProbs)
-    action = np.random.choice(len(actionProbs), p=actionProbs)
-    '''
-    # epsilon greedy
-    if random.random() < 0.1:
-        action = random.choice(actions)
-    else:
-        action = np.argmax(actionProbs)
-
-    return action
-
-# currently results is probabilities, but should be actions preferably
-def batchRolloutPolicy(game, TM):
-    gameSize = game.size * game.size
-    with TM.lock:
-        # find index of this thread ignoring stopped threads
-        thread_id = TM.threads.index(threading.current_thread())
-        TM.games.append(game.getNNState()[0])
-
-        if len(TM.games) >= len(TM.threads):
-            # predict entire batch
-            if not TM.calcDone:
-                TM.results = TM.model.predict(np.array(TM.games), verbose=0)
-                TM.condition.notify_all()
-                TM.calcDone = True
-        else:
-            while not TM.calcDone:
-                TM.condition.wait()
-
-        # turn action distribution into action
-        TM.results[thread_id] = selectAction(game, TM.results[thread_id])
-
-    # if all threads have come to this point, reset the batch
-    TM.barrier.wait()
-    TM.games = []
-    TM.calcDone = False
 
 class Node:
     def __init__(self, game, action=None, parent=None):
@@ -73,7 +23,7 @@ class Node:
         self.reward = 0
 
     def selectChild(self): # UCT
-        # TODO: add temperature here
+        # TODO: add temperature
         if self.turn == 1:
             s = max(self.childNodes, key=lambda c: c.reward/c.visits + sqrt(2*log(self.visits)/c.visits))
         else:
@@ -98,12 +48,11 @@ class Node:
 
 
 class Mcts:
-    def __init__(self, maxIters, maxTime, rolloutPolicy=randomRolloutPolicy, criticRollout=None, TM=None):
+    def __init__(self, maxIters, maxTime, rolloutPolicy=randomRolloutPolicy):
+        # TODO: rename iters to simulations
         self.maxIters = maxIters
         self.maxTime = maxTime
         self.rolloutPolicy = rolloutPolicy
-        self.criticRollout = criticRollout
-        self.TM = TM
         self.root = None
         self.log = logging.getLogger("MCTS")
         self.log.setLevel(logging.INFO)
@@ -114,7 +63,8 @@ class Mcts:
         found = False
         if self.root != None:
             for child in self.root.childNodes:
-                if (child.game.getNNState() == game.getNNState()).all():
+                # check if the two games are equal
+                if (child.game.equals(game)):
                     self.root = child
                     self.root.parentNode = None # save memory
                     found = True
@@ -125,13 +75,8 @@ class Mcts:
             self.root = Node(game)
         start = time.time()
         iters = 0
-        # check if maxIters is a function
-        if callable(self.maxIters):
-            maxIters = self.maxIters(game)
-        else:
-            maxIters = self.maxIters
 
-        while (time.time() - start < self.maxTime) and iters < maxIters:
+        while (time.time() - start < self.maxTime) and iters < self.maxIters:
             iters += 1
             node = self.root
             gameCopy = game.copy()
@@ -139,12 +84,10 @@ class Mcts:
             node = select(node, gameCopy)
             node = expand(node, gameCopy)
 
-            if self.TM != None:
-                reward = self.batchRollout(gameCopy)
-            else:
-                reward = self.rollout(gameCopy)
+            reward = self.rollout(gameCopy)
 
             backpropagate(node, reward)
+
         actionNodes = sorted(self.root.childNodes, key=lambda c: c.visits)
 
         # Create action distribution probabilities
@@ -153,37 +96,20 @@ class Mcts:
         actionDistNumpy = np.zeros(game.size * game.size)
         for action, prob in actionDist.items():
             actionDistNumpy[action] = prob
-        self.replayBuffer.append([game.getNNState(), actionDistNumpy, game.getTurn()*-1]) # assume we lose, winner updates its own replay buffer
+
+        '''    
+        # if player is -1 (second player) then transpose the action distribution
+        if game.getTurn() == -1:
+            actionDistNumpy = actionDistNumpy.reshape(game.size, game.size).T.reshape(game.size * game.size)
+        '''
+
+        self.replayBuffer.append([game.getNNState(), actionDistNumpy]) 
 
         return actionNodes
 
     def rollout(self, gameCopy):
-        # if not terminal and there is critic model, x% chance of using critic model
-        if self.criticRollout != None and not gameCopy.isTerminal() and random.random() < 0.2:
-            return self.criticRollout(gameCopy)
         while not gameCopy.isTerminal():
             gameCopy.playAction(self.rolloutPolicy(gameCopy))
-        return gameCopy.getResult()
-
-    def batchRollout(self, gameCopy):
-        # if not terminal and there is critic model, x% chance of using critic model
-        if self.criticRollout != None and not gameCopy.isTerminal() and random.random() < 0.2:
-            return self.criticRollout(gameCopy)
-        # if game is terminal this thread will just continue ignoring other threads
-        # join the batch so that the other threads can continue
-        if gameCopy.isTerminal():
-            self.rolloutPolicy(gameCopy, self.TM)
-            self.TM.barrier.wait()
-            return gameCopy.getResult()
-
-        activeThreads = [t for t in self.TM.threads if not t._is_stopped]
-        threadid = activeThreads.index(threading.current_thread())
-        while not gameCopy.isTerminal():
-            self.rolloutPolicy(gameCopy, self.TM)
-            # all elements in results[threadid] are the same, so just take the first
-            action = int(self.TM.results[threadid][0])
-            self.TM.barrier.wait()
-            gameCopy.playAction(action)
         return gameCopy.getResult()
 
 def select(node, gameCopy):
@@ -204,59 +130,18 @@ def backpropagate(node, reward):
         node.update(reward)
         node = node.parentNode
 
-class ThreadManager:
-    def __init__(self, batchSize, boardSize, model):
-        self.batchSize = batchSize
-        self.boardSize = boardSize
-        self.model = model
-
-        self.replayBufferList = []
-        self.games = []
-        self.barrier = threading.Barrier(batchSize)
-        self.lock = threading.Lock()
-        self.calcDone = False
-        self.condition = threading.Condition(self.lock)
-        self.results =  []
-        self.threads = []
-        self.startTime = time.time()
-
-
-    def threadJob(self, game):
-        gameCopy = game.copy()
-        game.playGame()
-        result = []
-        p1, p2 = game.player1, game.player2
-
-        # only add to replay buffer if player has mcts
-        if hasattr(p1, "mcts"):
-            result += p1.mcts.replayBuffer
-
-        if hasattr(p2, "mcts"):
-            result += p2.mcts.replayBuffer
-
-        self.replayBufferList.append(result)
-        logging.getLogger('THREADS').info(f"{threading.current_thread().name} done | {int(time.time() - self.startTime)}s | {len(self.replayBufferList)}/{self.batchSize} | winner={game.getResult()} | data points={len(result)}")
-
-        # when done continue to call batchRolloutPolicy
-        while True: # waste of resources. waits for the last game to finish
-            batchRolloutPolicy(gameCopy, self)
-            activeThreads = [t for t in self.threads if not t._is_stopped]
-            if len(self.replayBufferList) > self.batchSize -1:
-                break
-            self.barrier.wait()
-
 if __name__ == "__main__":
     from player import RandomPlayer, MCTSPlayer
     from hex import HexGame
     from tournament import Tournament
 
     # fight mcts vs random player
-    boardSize = 4
-    numTournamentRounds = 5
+    boardSize = 5
+    numTournamentRounds = 1
     players = [
-        MCTSPlayer(maxIters=100, maxTime=20),
+        MCTSPlayer(maxIters=500, maxTime=20),
         RandomPlayer()
     ]
-    tournament = Tournament(HexGame, players, boardSize=boardSize, plot=False)
+    tournament = Tournament(HexGame, players, boardSize=boardSize, plot=True)
     tournament.run(numTournamentRounds)
     tournament.printResults()
