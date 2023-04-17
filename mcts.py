@@ -114,11 +114,11 @@ class Mcts:
         found = False
         if self.root != None:
             for child in self.root.childNodes:
-                for childChild in child.childNodes:
-                    if (childChild.game.getNNState() == game.getNNState()).all():
-                        self.root = childChild
-                        found = True
-                        break
+                if (child.game.getNNState() == game.getNNState()).all():
+                    self.root = child
+                    self.root.parentNode = None # save memory
+                    found = True
+                    break
                 if found:
                     break
         if not found:

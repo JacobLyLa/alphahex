@@ -32,7 +32,8 @@ class ReinforcementLearner:
         self.parallelGames = parallelGames
         self.boardSize = boardSize
         self.model = model
-        self.criticModel = createCriticModel(boardSize)
+        # self.criticModel = createCriticModel(boardSize)
+        self.criticModel = None
         self.replayBufferSize = replayBufferSize
 
         self.batchesDone = 0
@@ -41,7 +42,7 @@ class ReinforcementLearner:
         self.bestModelWinrate = []
 
         # calculate time per move
-        avgGameTime = 60
+        avgGameTime = 600
         maxMoves = boardSize * boardSize
         self.timePerMove = avgGameTime / maxMoves
         print("Time per move:", self.timePerMove)
@@ -63,16 +64,14 @@ class ReinforcementLearner:
         print("----------------------------------------")
         TM = ThreadManager(self.parallelGames, self.boardSize, self.model)
         for i in range(TM.batchSize):
+            # TODO: IF WE USE THE SAME PLAYER IN THE GAME, WE CAN USE THE SAME MCTS TREE. UPDATE MCTS TO ONLY LOOK FOR FIRST CHILD, NOT GRANDCHILD
+
             # create player1
-            nnMctsPlayer = NeuralMCTSPlayer(model=TM.model, maxIters=99999, maxTime=self.timePerMove, criticModel=self.criticModel, argmax=False, TM=TM)
+            nnMctsPlayer = NeuralMCTSPlayer(model=TM.model, maxIters=99999, maxTime=self.timePerMove, argmax=False, TM=TM)
             nnMctsPlayer.mcts.rolloutPolicy = batchRolloutPolicy
 
-            # create player2
-            nnMctsPlayer2 = NeuralMCTSPlayer(model=TM.model, maxIters=99999, maxTime=self.timePerMove, criticModel=self.criticModel, argmax=False, TM=TM)
-            nnMctsPlayer2.mcts.rolloutPolicy = batchRolloutPolicy
-
             # create game and start thread
-            game = HexGame(nnMctsPlayer, nnMctsPlayer2, size=TM.boardSize)
+            game = HexGame(nnMctsPlayer, nnMctsPlayer, size=TM.boardSize)
             t = threading.Thread(target=TM.threadJob, args=(game,))
             TM.threads.append(t)
 
@@ -86,7 +85,7 @@ class ReinforcementLearner:
         print("Batch", self.batchesDone, "took", end - start, "seconds")
 
         self.saveReplayBuffer(TM.replayBufferList)
-        # normaly 1 minibatch per episode, but difficult when using batches
+        # normaly 1 minibatch per episode, but probably more when using batches
         for i in range(1):
             self.trainMiniBatch()
         if self.batchesDone % self.saveInterval == 0:
@@ -131,20 +130,29 @@ class ReinforcementLearner:
         X_mini = X[idx]
         y_mini = y[idx]
 
-        self.model.fit(X_mini, y_mini, epochs=1, verbose=0)
+        self.model.fit(X_mini, y_mini, epochs=3, verbose=0)
         # test accuracy on full replay buffer
         loss, acc = self.model.evaluate(X, y, verbose=0)
         print("Accuracy on full replay buffer:", acc)
+
+        if not self.criticModel:
+            return
 
         # also train critic
         X = [r[0] for r in replay]
         y = [r[-1] for r in replay]
         X = np.array(X).reshape(len(X), -1)
         y = np.array(y).reshape(-1, 1)
-        # for all -1's in y set it to 0
-        y[y == -1] = 0
+        y[y == -1] = 0 # for all -1's in y set it to 0
+        # choose mini batch
+        if len(X) < self.miniBatchSize:
+            idx = np.random.choice(len(X), size=len(X), replace=False)
+        else:
+            idx = np.random.choice(len(X), size=self.miniBatchSize, replace=False)
+        X_mini = X[idx]
+        y_mini = y[idx]
 
-        self.criticModel.fit(X, y, epochs=1, verbose=0)
+        self.criticModel.fit(X_mini, y_mini, epochs=1, verbose=0)
         # print accuracy
         loss, acc = self.criticModel.evaluate(X, y, verbose=0)
         print("Critic accuracy on full replay buffer:", acc)
@@ -221,10 +229,10 @@ class ReinforcementLearner:
 
 
 def main():
-    parallelGames = 64 # compare iterations to 1
-    boardSize = 3
+    parallelGames = 1 # compare iterations to 1
+    boardSize = 5
     saveInterval = 1
-    miniBatchSize = 2*parallelGames
+    miniBatchSize = 64
     replayBufferSize = boardSize*boardSize*parallelGames*10
 
     modelName = f'model.{boardSize}'
@@ -232,7 +240,7 @@ def main():
     initialModel = createModel(size=boardSize)
 
     RL = ReinforcementLearner(saveInterval, miniBatchSize, parallelGames, boardSize, initialModel, replayBufferSize)
-    RL.testModel()
+    # RL.testModel()
     for i in range(100):
         RL.playBatch()
 
