@@ -97,12 +97,6 @@ class Mcts:
         for action, prob in actionDist.items():
             actionDistNumpy[action] = prob
 
-        '''    
-        # if player is -1 (second player) then transpose the action distribution
-        if game.getTurn() == -1:
-            actionDistNumpy = actionDistNumpy.reshape(game.size, game.size).T.reshape(game.size * game.size)
-        '''
-
         self.replayBuffer.append([game.getNNState(), actionDistNumpy]) 
 
         return actionNodes

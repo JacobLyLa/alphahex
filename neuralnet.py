@@ -23,7 +23,7 @@ def createModel(size):
     model.add(Dropout(0.2))
     model.add(BatchNormalization())
     model.add(Dense(size*size, activation='softmax', kernel_initializer='he_uniform'))
-    model.compile(loss='categorical_crossentropy', optimizer='Adam', metrics=['accuracy'])
+    model.compile(loss='categorical_crossentropy', optimizer=Adam(lr=0.01), metrics=['accuracy'])
     return model
 
 

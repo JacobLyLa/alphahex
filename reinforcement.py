@@ -171,10 +171,10 @@ class ReinforcementLearner:
 
 
 def main():
-    avgGameTime = 10
+    avgGameTime = 30
     boardSize = 3
     saveInterval = 1
-    miniBatchSize = 2**boardSize # 2,4,8,16,32...
+    miniBatchSize = 2**(boardSize+2) # 2,4,8,16,32...
     replayBufferSize = boardSize*boardSize*10
 
     modelName = f'model.{boardSize}'
