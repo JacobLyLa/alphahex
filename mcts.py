@@ -9,7 +9,7 @@ logging.basicConfig()
 # logging.getLogger().setLevel(logging.DEBUG)
 
 def randomRolloutPolicy(game):
-    return random.choice(game.getActions())
+    game.playAction(random.choice(game.getActions()))
 
 class Node:
     def __init__(self, game, action=None, parent=None):
@@ -89,6 +89,8 @@ class Mcts:
             backpropagate(node, reward)
 
         actionNodes = sorted(self.root.childNodes, key=lambda c: c.visits)
+        # print how many iterations were done
+        print(f"iterations: {iters}")
 
         # Create action distribution probabilities
         totalVisits = sum(node.visits for node in actionNodes)
@@ -98,12 +100,11 @@ class Mcts:
             actionDistNumpy[action] = prob
 
         self.replayBuffer.append([game.getNNState(), actionDistNumpy]) 
-
         return actionNodes
 
     def rollout(self, gameCopy):
         while not gameCopy.isTerminal():
-            gameCopy.playAction(self.rolloutPolicy(gameCopy))
+            self.rolloutPolicy(gameCopy)
         return gameCopy.getResult()
 
 def select(node, gameCopy):
@@ -135,6 +136,17 @@ if __name__ == "__main__":
     players = [
         MCTSPlayer(maxIters=500, maxTime=20),
         RandomPlayer()
+    ]
+    tournament = Tournament(HexGame, players, boardSize=boardSize, plot=True)
+    tournament.run(numTournamentRounds)
+    tournament.printResults()
+
+    # fight mcts vs mcts with less iterations
+    boardSize = 5
+    numTournamentRounds = 1
+    players = [
+        MCTSPlayer(maxIters=500, maxTime=20, name="MCTS 500"),
+        MCTSPlayer(maxIters=100, maxTime=20, name="MCTS 100")
     ]
     tournament = Tournament(HexGame, players, boardSize=boardSize, plot=True)
     tournament.run(numTournamentRounds)

@@ -55,33 +55,34 @@ class RandomPlayer(Player):
         game.playAction(action)
 
 class NeuralNetPlayer(Player):
-    def __init__(self, model=None, argmax=False, name="NeuralNet"):
+    def __init__(self, model, epsilonMultiplier=0.99, argmax=False, name="NeuralNet"):
         super().__init__(name)
+        self.epsilon = 1
+        self.epsilonMultiplier = epsilonMultiplier
         self.model = model
         self.argmax = argmax
 
-    def getAction(self, game):
-        actionProbs = self.model(game.getNNState()).numpy()[0]
+    def updateEpsilon(self):
+        self.epsilon *= self.epsilonMultiplier
+        print(f"NeuralNetPlayer: {self.name} epsilon: {self.epsilon}")
 
+    def playAction(self, game):
+        # if not argmax, then use epsilon greedy
+        if not self.argmax:
+            if random.random() < self.epsilon:
+                action = random.choice(game.getActions())
+                game.playAction(action)
+                return
+
+        # did not do random action, so do argmax
+        actionProbs = self.model(game.getNNState()).numpy()[0]
         legalActionsMask = np.zeros(len(actionProbs))
         for action in game.getActions():
             legalActionsMask[action] = 1
         actionProbs = actionProbs * legalActionsMask
-
-        if self.argmax:
-            action = np.argmax(actionProbs)
-        else:
-            # TÒDO: dynamic epsilon
-            if random.random() < 0.8:
-                action = np.argmax(actionProbs)
-            else:
-                # random choice
-                action = np.random.choice(len(actionProbs), p=actionProbs / np.sum(actionProbs))
-        return action
-
-    def playAction(self, game):
-        action = self.getAction(game)
+        action = np.argmax(actionProbs)
         game.playAction(action)
+        
 
 class MCTSPlayer(Player):
     def __init__(self, maxIters, maxTime, argmax=True, name="MCTS"):
@@ -89,15 +90,12 @@ class MCTSPlayer(Player):
         self.mcts = Mcts(maxIters, maxTime)
         self.argmax = argmax
 
-    def selectAction(self, actionNodes):
-        if self.argmax:
-            return argmaxPolicy(actionNodes)
-        else:
-            return epsilonGreedyPolicy(actionNodes)
-
     def playAction(self, game):
         actionNodes = self.mcts.search(game)
-        action = self.selectAction(actionNodes)
+        if self.argmax:
+            action = argmaxPolicy(actionNodes)
+        else:
+            action = epsilonGreedyPolicy(actionNodes)
         game.playAction(action)
 
 class NeuralMCTSPlayer(Player):
@@ -105,16 +103,13 @@ class NeuralMCTSPlayer(Player):
         super().__init__(name)
         self.model = model
         self.argmax = argmax
-        rolloutPolicy = lambda game: NeuralNetPlayer(model=model, argmax=False, name="RolloutPolicy").getAction(game)
+        rolloutPolicy = lambda game: NeuralNetPlayer(model=model, argmax=False, name="RolloutPolicy").playAction(game)
         self.mcts = Mcts(maxIters, maxTime, rolloutPolicy)
-
-    def selectAction(self, actionNodes):
-        if self.argmax:
-            return argmaxPolicy(actionNodes)
-        else:
-            return epsilonGreedyPolicy(actionNodes)
 
     def playAction(self, game):
         actionNodes = self.mcts.search(game)
-        action = self.selectAction(actionNodes)
+        if self.argmax:
+            action = argmaxPolicy(actionNodes)
+        else:
+            action = epsilonGreedyPolicy(actionNodes)
         game.playAction(action)
