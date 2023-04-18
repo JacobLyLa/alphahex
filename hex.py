@@ -178,8 +178,8 @@ class HexPlotter():
 if __name__ == '__main__':
     from player import RandomPlayer
     from tournament import Tournament
-    num_players = 3
-    players = [RandomPlayer(f"Random{i}") for i in range(num_players)]
+    numPlayers = 3
+    players = [RandomPlayer(f"Random{i}") for i in range(numPlayers)]
     tournament = Tournament(HexGame, players, boardSize=5, plot=True)
     tournament.run(3)
     tournament.printResults()
