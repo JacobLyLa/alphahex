@@ -25,14 +25,24 @@ class TournamentOfProgressivePolicies:
     def FromTraining(cls, iterations, numPolicies, parallelGames, boardSize, saveInterval, miniBatchSize):
         initialModel = createModel(size=boardSize)
         replayBufferSize = boardSize*boardSize*parallelGames*4
-        learner = ReinforcementLearner(saveInterval=saveInterval, miniBatchSize=miniBatchSize, parallelGames=parallelGames, boardSize=boardSize, model=initialModel, replayBufferSize=replayBufferSize)
+
+        learner = ReinforcementLearner(
+            epsilonMultiplier=0.995,
+            avgGameTime=10,
+            saveInterval=saveInterval,
+            miniBatchSize=miniBatchSize,
+            boardSize=boardSize,
+            model=initialModel,
+            replayBufferSize=replayBufferSize
+        )
 
         tournamentIterations = [(iterations - 1) * i // (numPolicies - 1) for i in range(numPolicies)]
+        print(f'Tournament iterations: {tournamentIterations}')
 
         models = {}
         for iteration in range(iterations):
             print(f'Iteration {iteration}')
-            learner.playBatch()
+            learner.oneIteration()
             if iteration in tournamentIterations:
                 models[iteration] = tf.keras.models.clone_model(learner.model)
 
@@ -66,7 +76,11 @@ class TournamentOfProgressivePolicies:
             model.save(path / f'model{iteration}')
 
     def run(self):
-        self.tournament.run()
+        self.tournament.run(10)
+        for player in self.players:
+            result = self.tournament.getResults(player)
+            print(f'{player.name}: wins {result[0]}, losses {result[1]}')
+            print(f'win rate: {result[0] / (result[0] + result[1])}')
 
 
 def main():
@@ -76,8 +90,8 @@ def main():
     group.add_argument('--train', type=str, help='Train a model and save to path (e.g. --train topp/tournament1)')
     group.add_argument('--load', type=str, help='Load a model from path (e.g. --load topp/tournament1)')
 
-    parser.add_argument('--iterations', type=int, default=2, help='Number of iterations to train for')
-    parser.add_argument('--num_policies', type=int, default=2, help='Number of policies to train')
+    parser.add_argument('--iterations', type=int, default=20, help='Number of iterations to train for')
+    parser.add_argument('--num_policies', type=int, default=5, help='Number of policies to train')
     parser.add_argument('--parallel_games', type=int, default=64, help='Number of parallel games to play')
     parser.add_argument('--board_size', type=int, default=3, help='Board size')
     parser.add_argument('--save_interval', type=int, default=10, help='Save interval')
