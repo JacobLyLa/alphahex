@@ -19,9 +19,6 @@ def createModel(size):
     model.add(Dense(size*size, input_dim=size*size*4, activation='relu'))
     model.add(Dropout(0.2))
     model.add(BatchNormalization())
-    model.add(Dense(size*size, activation='relu'))
-    model.add(Dropout(0.2))
-    model.add(BatchNormalization())
     model.add(Dense(size*size, activation='softmax', kernel_initializer='he_uniform'))
     model.compile(loss='categorical_crossentropy', optimizer=Adam(lr=0.01), metrics=['accuracy'])
     return model
