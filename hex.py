@@ -34,6 +34,7 @@ class HexGame(Game):
 
     # add turn as the last element
     def getNNState(self):
+        
         # first bitmap is current players stones, second bitmap is opponents stones, third bitmap is turn empty space, fourth bitmap is turn
         '''
         firstMap = np.where(self.board == self.turn, 1, 0)
@@ -44,17 +45,19 @@ class HexGame(Game):
         '''
 
         # here the bitmaps are the represent player1 and player2, not turn
+        '''
         firstMap = np.where(self.board == 1, 1, 0)
         secondMap = np.where(self.board == -1, 1, 0)
         thirdMap = np.where(self.board == 0, 1, 0)
         fourthMap = np.ones(shape=self.board.shape) * self.turn
         board = np.stack((firstMap, secondMap, thirdMap, fourthMap), axis=2)
-
         '''
+
+        
         # add turn as the last element
         board = self.board
         board = np.append(board, self.turn)
-        '''
+        
         tensor = tf.convert_to_tensor(np.array([board]).reshape(1, -1), dtype=tf.float32)
         return tensor
 

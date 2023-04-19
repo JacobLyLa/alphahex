@@ -19,12 +19,12 @@ class TournamentOfProgressivePolicies:
         self.boardSize = boardSize
         self.models = models
         self.players = [NeuralNetPlayer(model, name=f'nn {iteration}', epsilon=0.05, argmax=False) for iteration, model in self.models.items()]
-        self.tournament = Tournament(HexGame, self.players, boardSize=self.boardSize, plot=True)
+        self.tournament = Tournament(HexGame, self.players, boardSize=self.boardSize, plot=False)
 
     @classmethod
     def FromTraining(cls, iterations, numPolicies, boardSize, saveInterval, miniBatchSize):
         initialModel = createModel(size=boardSize)
-        replayBufferSize = boardSize*boardSize*20
+        replayBufferSize = boardSize*boardSize*50
 
         learner = ReinforcementLearner(
             epsilonMultiplier=0.995,
@@ -76,7 +76,7 @@ class TournamentOfProgressivePolicies:
             model.save(path / f'model{iteration}')
 
     def run(self):
-        self.tournament.run(4)
+        self.tournament.run(10)
         for player in self.players:
             # TESTING:
             game = HexGame(None, None, self.boardSize)

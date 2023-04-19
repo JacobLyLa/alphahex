@@ -29,11 +29,6 @@ class ReinforcementLearner:
         self.timePerMove = avgGameTime / maxMoves
         print("Time per move:", self.timePerMove)
 
-        # clear replay buffer
-        dataName = f'replayBuffer{boardSize}.pickle'
-        with open(dataName, "wb") as f:
-            pickle.dump([], f)
-
         # save this model as the best model
         self.saveModel(model, f'bestmodel.{self.boardSize}')
         self.neuralPlayer = NeuralNetPlayer(model=self.model, argmax=True)
@@ -42,7 +37,6 @@ class ReinforcementLearner:
 
     def oneIteration(self):
         start = time.time()
-        print("Starting episode", self.episodesDone)
         print("----------------------------------------")
         nnMctsPlayer = self.neuralMctsPlayer
 
@@ -61,14 +55,8 @@ class ReinforcementLearner:
         self.neuralMctsPlayer.updateEpsilon()
         self.episodesDone += 1
 
-    def saveReplayBuffer(self, episodeBuffer):
-        # if file exists, load and append
+    def saveReplayBuffer(self, replayBuffer):
         dataName = f'replayBuffer{self.boardSize}.pickle'
-        try:
-            with open(dataName, "rb") as f:
-                replayBuffer = pickle.load(f) + episodeBuffer 
-        except:
-            print("No replay buffer found!")
 
         # keep only the last replayBufferSize games if full
         if len(replayBuffer) > self.replayBufferSize:
@@ -77,15 +65,13 @@ class ReinforcementLearner:
         with open(dataName, "wb") as f:
             pickle.dump(replayBuffer, f)
 
-        print("Saved", len(replayBuffer), "data points to", dataName)
+        print("Saved replay buffer with size:", len(replayBuffer))
 
     def trainMiniBatch(self):
-        dataName = f'replayBuffer{self.boardSize}.pickle'
-        with open(dataName, 'rb') as f:
-            replay = pickle.load(f)
+        replayBuffer = self.neuralMctsPlayer.mcts.replayBuffer
 
-        X = np.array([x[0] for x in replay]).reshape(len(replay), -1)
-        y = np.array([x[1] for x in replay]).reshape(len(replay), -1)
+        X = np.array([x[0] for x in replayBuffer]).reshape(len(replayBuffer), -1)
+        y = np.array([x[1] for x in replayBuffer]).reshape(len(replayBuffer), -1)
 
         # choose mini batch
         if len(X) < self.miniBatchSize:
@@ -94,8 +80,8 @@ class ReinforcementLearner:
             idx = np.random.choice(len(X), size=self.miniBatchSize, replace=False)
         X_mini = X[idx]
         y_mini = y[idx]
-
         self.model.fit(X_mini, y_mini, epochs=1, verbose=0)
+
         # test accuracy on full replay buffer
 
         loss, acc = self.model.evaluate(X, y, verbose=0)
@@ -199,7 +185,7 @@ class ReinforcementLearner:
 
 
 def main():
-    epsilonMultiplier = 1.0
+    epsilonMultiplier = 0.997
     avgGameTime = 10
     boardSize = 3
     saveInterval = 1
