@@ -90,7 +90,7 @@ class Mcts:
 
         actionNodes = sorted(self.root.childNodes, key=lambda c: c.visits)
         # print how many iterations were done
-        print(f"iterations: {iters}")
+        print(iters, end=" ")
 
         # Create action distribution probabilities
         totalVisits = sum(node.visits for node in actionNodes)

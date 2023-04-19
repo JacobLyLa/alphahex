@@ -99,12 +99,18 @@ class MCTSPlayer(Player):
         game.playAction(action)
 
 class NeuralMCTSPlayer(Player):
-    def __init__(self, model, maxIters, maxTime, argmax=True, criticModel=None, name="NeuralMCTS"):
+    def __init__(self, model, maxIters, maxTime, epsilonMultiplier=0.997, argmax=True, criticModel=None, name="NeuralMCTS"):
         super().__init__(name)
         self.model = model
         self.argmax = argmax
-        rolloutPolicy = lambda game: NeuralNetPlayer(model=model, argmax=False, name="RolloutPolicy").playAction(game)
+        self.epsilon = 1
+        self.epsilonMultiplier = epsilonMultiplier
+        self.neuralNetPlayer = NeuralNetPlayer(model, epsilonMultiplier=epsilonMultiplier, argmax=False, name="RolloutPolicy")
+        rolloutPolicy = lambda game: self.neuralNetPlayer.playAction(game)
         self.mcts = Mcts(maxIters, maxTime, rolloutPolicy)
+
+    def updateEpsilon(self):
+        self.neuralNetPlayer.updateEpsilon()
 
     def playAction(self, game):
         actionNodes = self.mcts.search(game)
