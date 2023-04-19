@@ -38,6 +38,7 @@ class ReinforcementLearner:
         self.saveModel(model, f'bestmodel.{self.boardSize}')
         self.neuralPlayer = NeuralNetPlayer(model=self.model, argmax=True)
         self.neuralMctsPlayer = NeuralMCTSPlayer(model=self.model, epsilonMultiplier=epsilonMultiplier, maxIters=99999, maxTime=self.timePerMove, argmax=False)
+        self.testModel()
 
     def oneIteration(self):
         start = time.time()
@@ -198,18 +199,17 @@ class ReinforcementLearner:
 
 
 def main():
-    epsilonMultiplier = 0.995
-    avgGameTime = 30
-    boardSize = 4
+    epsilonMultiplier = 1.0
+    avgGameTime = 10
+    boardSize = 3
     saveInterval = 1
     miniBatchSize = 32
-    replayBufferSize = boardSize*boardSize*50
+    replayBufferSize = boardSize*boardSize*100
 
     modelName = f'model.{boardSize}'
     initialModel = createModel(size=boardSize)
 
     RL = ReinforcementLearner(epsilonMultiplier, avgGameTime, saveInterval, miniBatchSize, boardSize, initialModel, replayBufferSize)
-    RL.testModel()
     for i in range(1000):
         RL.oneIteration()
 

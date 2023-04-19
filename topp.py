@@ -22,9 +22,9 @@ class TournamentOfProgressivePolicies:
         self.tournament = Tournament(HexGame, self.players, boardSize=self.boardSize, plot=True)
 
     @classmethod
-    def FromTraining(cls, iterations, numPolicies, parallelGames, boardSize, saveInterval, miniBatchSize):
+    def FromTraining(cls, iterations, numPolicies, boardSize, saveInterval, miniBatchSize):
         initialModel = createModel(size=boardSize)
-        replayBufferSize = boardSize*boardSize*parallelGames*4
+        replayBufferSize = boardSize*boardSize*20
 
         learner = ReinforcementLearner(
             epsilonMultiplier=0.995,
@@ -92,7 +92,6 @@ def main():
 
     parser.add_argument('--iterations', type=int, default=20, help='Number of iterations to train for')
     parser.add_argument('--num_policies', type=int, default=5, help='Number of policies to train')
-    parser.add_argument('--parallel_games', type=int, default=64, help='Number of parallel games to play')
     parser.add_argument('--board_size', type=int, default=3, help='Board size')
     parser.add_argument('--save_interval', type=int, default=10, help='Save interval')
     parser.add_argument('--mini_batch_size', type=int, default=32, help='Mini batch size')
@@ -105,7 +104,6 @@ def main():
         topp = TournamentOfProgressivePolicies.FromTraining(
             iterations=args.iterations,
             numPolicies=args.num_policies,
-            parallelGames=args.parallel_games,
             boardSize=args.board_size,
             saveInterval=args.save_interval,
             miniBatchSize=args.mini_batch_size,
