@@ -2,21 +2,6 @@ import random
 import numpy as np
 from mcts import Mcts
 
-def argmaxPolicy(actionNodes):
-    return max(actionNodes, key=lambda node: node.visits).action
-
- # TODO: dynamic epsilon
-def epsilonGreedyPolicy(actionNodes, epsilon=0.1):
-    if random.random() < epsilon:
-        return random.choice(actionNodes).action
-    else:
-        return probabilsticPolicy(actionNodes)
-
-def probabilsticPolicy(actionNodes):
-    actionProbs = np.array([node.visits for node in actionNodes])
-    actionProbs = actionProbs / np.sum(actionProbs)
-    action = np.random.choice(len(actionProbs), p=actionProbs)
-    return actionNodes[action].action
 
 class Player:
     def __init__(self, name):
@@ -64,7 +49,6 @@ class NeuralNetPlayer(Player):
 
     def updateEpsilon(self):
         self.epsilon *= self.epsilonMultiplier
-        print(f"NeuralNetPlayer: {self.name} epsilon: {self.epsilon}")
 
     def playAction(self, game):
         # if not argmax, then use epsilon greedy
@@ -83,6 +67,14 @@ class NeuralNetPlayer(Player):
         action = np.argmax(actionProbs)
         game.playAction(action)
         
+def argmaxPolicy(actionNodes):
+    return max(actionNodes, key=lambda node: node.visits).action
+
+def probabilsticPolicy(actionNodes):
+    actionProbs = np.array([node.visits for node in actionNodes])
+    actionProbs = actionProbs / np.sum(actionProbs)
+    action = np.random.choice(len(actionProbs), p=actionProbs)
+    return actionNodes[action].action
 
 class MCTSPlayer(Player):
     def __init__(self, maxIters, maxTime, argmax=True, name="MCTS"):
@@ -95,7 +87,8 @@ class MCTSPlayer(Player):
         if self.argmax:
             action = argmaxPolicy(actionNodes)
         else:
-            action = epsilonGreedyPolicy(actionNodes)
+            print("mcts probabilstic policy")
+            action = probabilsticPolicy(actionNodes)
         game.playAction(action)
 
 class NeuralMCTSPlayer(Player):
@@ -117,5 +110,5 @@ class NeuralMCTSPlayer(Player):
         if self.argmax:
             action = argmaxPolicy(actionNodes)
         else:
-            action = epsilonGreedyPolicy(actionNodes)
+            action = probabilsticPolicy(actionNodes)
         game.playAction(action)
