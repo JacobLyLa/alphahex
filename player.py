@@ -40,9 +40,9 @@ class RandomPlayer(Player):
         game.playAction(action)
 
 class NeuralNetPlayer(Player):
-    def __init__(self, model, epsilonMultiplier=0.99, argmax=False, name="NeuralNet"):
+    def __init__(self, model, epsilon=1, epsilonMultiplier=0.99, argmax=False, name="NeuralNet"):
         super().__init__(name)
-        self.epsilon = 1
+        self.epsilon = epsilon
         self.epsilonMultiplier = epsilonMultiplier
         self.model = model
         self.argmax = argmax
@@ -87,7 +87,6 @@ class MCTSPlayer(Player):
         if self.argmax:
             action = argmaxPolicy(actionNodes)
         else:
-            print("mcts probabilstic policy")
             action = probabilsticPolicy(actionNodes)
         game.playAction(action)
 

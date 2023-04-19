@@ -18,7 +18,7 @@ class TournamentOfProgressivePolicies:
     def __init__(self, boardSize: int, models: dict):
         self.boardSize = boardSize
         self.models = models
-        self.players = [NeuralNetPlayer(model, name=f'nn {iteration}') for iteration, model in self.models.items()]
+        self.players = [NeuralNetPlayer(model, name=f'nn {iteration}', epsilon=0.05, argmax=False) for iteration, model in self.models.items()]
         self.tournament = Tournament(HexGame, self.players, boardSize=self.boardSize, plot=True)
 
     @classmethod
@@ -76,9 +76,14 @@ class TournamentOfProgressivePolicies:
             model.save(path / f'model{iteration}')
 
     def run(self):
-        self.tournament.run(10)
+        self.tournament.run(4)
         for player in self.players:
-            result = self.tournament.getResults(player)
+            # TESTING:
+            game = HexGame(None, None, self.boardSize)
+            state = game.getNNState()
+            print(player.name)
+            print(player.model(state))
+            result = self.tournament.getPlayerResults(player)
             print(f'{player.name}: wins {result[0]}, losses {result[1]}')
             print(f'win rate: {result[0] / (result[0] + result[1])}')
 
@@ -91,7 +96,7 @@ def main():
     group.add_argument('--load', type=str, help='Load a model from path (e.g. --load topp/tournament1)')
 
     parser.add_argument('--iterations', type=int, default=20, help='Number of iterations to train for')
-    parser.add_argument('--num_policies', type=int, default=5, help='Number of policies to train')
+    parser.add_argument('--num_policies', type=int, default=6, help='Number of policies to train')
     parser.add_argument('--board_size', type=int, default=3, help='Board size')
     parser.add_argument('--save_interval', type=int, default=10, help='Save interval')
     parser.add_argument('--mini_batch_size', type=int, default=32, help='Mini batch size')
