@@ -25,7 +25,7 @@ def createModel(size):
     model.add(Flatten())
     model.add(Dense(size*size, activation='sigmoid'))
     model.add(Dense(size*size, activation='softmax', kernel_initializer='he_uniform'))
-    model.compile(loss='categorical_crossentropy', optimizer=Adam(lr=0.001), metrics=['accuracy'])
+    model.compile(loss='categorical_crossentropy', optimizer=Adam(lr=0.005), metrics=['accuracy'])
     return model
 
 def loadModel(path):
