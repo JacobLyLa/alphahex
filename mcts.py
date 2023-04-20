@@ -99,7 +99,10 @@ class Mcts:
         for action, prob in actionDist.items():
             actionDistNumpy[action] = prob
 
-        self.replayBuffer.append([game.getNNState(), actionDistNumpy]) 
+        if game.getTurn() == -1:
+            actionDistNumpy = actionDistNumpy.reshape(game.size, game.size).T.reshape(-1)
+
+        self.replayBuffer.append([game.getNNState(), actionDistNumpy])
         return actionNodes
 
     def rollout(self, gameCopy):
