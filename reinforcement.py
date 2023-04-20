@@ -38,6 +38,7 @@ class ReinforcementLearner:
     def oneIteration(self):
         start = time.time()
         print("----------------------------------------")
+        print ("Episode", self.episodesDone)
         nnMctsPlayer = self.neuralMctsPlayer
 
         # create game
@@ -69,21 +70,18 @@ class ReinforcementLearner:
 
     def trainMiniBatch(self):
         replayBuffer = self.neuralMctsPlayer.mcts.replayBuffer
-
         X = np.array([x[0] for x in replayBuffer]).reshape(len(replayBuffer), -1)
         y = np.array([x[1] for x in replayBuffer]).reshape(len(replayBuffer), -1)
-
-        # choose mini batch
-        if len(X) < self.miniBatchSize:
-            idx = np.random.choice(len(X), size=len(X), replace=False)
-        else:
-            idx = np.random.choice(len(X), size=self.miniBatchSize, replace=False)
-        X_mini = X[idx]
-        y_mini = y[idx]
-        self.model.fit(X_mini, y_mini, epochs=1, verbose=0)
+        for _ in range(2): # train on mini batch x times
+            if len(X) < self.miniBatchSize:
+                idx = np.random.choice(len(X), size=len(X), replace=False)
+            else:
+                idx = np.random.choice(len(X), size=self.miniBatchSize, replace=False)
+            X_mini = X[idx]
+            y_mini = y[idx]
+            self.model.fit(X_mini, y_mini, epochs=1, verbose=0)
 
         # test accuracy on full replay buffer
-
         loss, acc = self.model.evaluate(X, y, verbose=0)
         print("Accuracy on full replay buffer:", acc)
         print("Loss on full replay buffer:", loss)
@@ -187,16 +185,16 @@ class ReinforcementLearner:
 def main():
     epsilonMultiplier = 0.997
     avgGameTime = 10
-    boardSize = 3
+    boardSize = 4
     saveInterval = 1
-    miniBatchSize = 32
-    replayBufferSize = boardSize*boardSize*100
+    miniBatchSize = 16
+    replayBufferSize = boardSize*boardSize*50
 
     modelName = f'model.{boardSize}'
     initialModel = createModel(size=boardSize)
 
     RL = ReinforcementLearner(epsilonMultiplier, avgGameTime, saveInterval, miniBatchSize, boardSize, initialModel, replayBufferSize)
-    for i in range(1000):
+    for i in range(100):
         RL.oneIteration()
 
 if __name__ == "__main__":

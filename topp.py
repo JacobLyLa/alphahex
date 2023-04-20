@@ -27,8 +27,8 @@ class TournamentOfProgressivePolicies:
         replayBufferSize = boardSize*boardSize*50
 
         learner = ReinforcementLearner(
-            epsilonMultiplier=0.995,
-            avgGameTime=10,
+            epsilonMultiplier=0.998,
+            avgGameTime=60,
             saveInterval=saveInterval,
             miniBatchSize=miniBatchSize,
             boardSize=boardSize,
@@ -41,7 +41,7 @@ class TournamentOfProgressivePolicies:
 
         models = {}
         for iteration in range(iterations):
-            print(f'Iteration {iteration}')
+            # print(f'Iteration {iteration}') already in reinforcement.py
             learner.oneIteration()
             if iteration in tournamentIterations:
                 models[iteration] = tf.keras.models.clone_model(learner.model)
@@ -78,11 +78,6 @@ class TournamentOfProgressivePolicies:
     def run(self):
         self.tournament.run(10)
         for player in self.players:
-            # TESTING:
-            game = HexGame(None, None, self.boardSize)
-            state = game.getNNState()
-            print(player.name)
-            print(player.model(state))
             result = self.tournament.getPlayerResults(player)
             print(f'{player.name}: wins {result[0]}, losses {result[1]}')
             print(f'win rate: {result[0] / (result[0] + result[1])}')
