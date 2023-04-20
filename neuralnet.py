@@ -19,12 +19,13 @@ def createModel(size):
     input_shape = (size, size, 4)  # Assumes square images with 4 channels
     model = Sequential()
     model.add(Reshape(input_shape, input_shape=(size*size*4,)))  # Reshape the flattened input data
-    model.add(Conv2D(size, kernel_size=(3, 3), activation='relu'))
+    model.add(Conv2D(size, kernel_size=(3, 3), activation='sigmoid'))
     model.add(Dropout(0.2))
     model.add(BatchNormalization())
     model.add(Flatten())
+    model.add(Dense(size*size, activation='sigmoid'))
     model.add(Dense(size*size, activation='softmax', kernel_initializer='he_uniform'))
-    model.compile(loss='categorical_crossentropy', optimizer=Adam(lr=0.01), metrics=['accuracy'])
+    model.compile(loss='categorical_crossentropy', optimizer=Adam(lr=0.001), metrics=['accuracy'])
     return model
 
 def loadModel(path):
