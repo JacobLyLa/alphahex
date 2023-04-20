@@ -1,5 +1,7 @@
 import random
+
 import numpy as np
+
 from mcts import Mcts
 
 
@@ -53,7 +55,7 @@ class NeuralNetPlayer(Player):
 
     def playAction(self, game):
         # if not argmax, then use epsilon greedy
-        if not self.argmax:
+        if self.argmax == False:
             if random.random() < self.epsilon:
                 action = random.choice(game.getActions())
                 game.playAction(action)
@@ -70,7 +72,12 @@ class NeuralNetPlayer(Player):
             '''
             legalActionsMask[action] = 1
         actionProbs = actionProbs * legalActionsMask
-        action = np.argmax(actionProbs)
+        actionProbs = actionProbs / np.sum(actionProbs)
+
+        if self.argmax == "Probs":
+            action = np.random.choice(len(actionProbs), p=actionProbs)
+        else:
+            action = np.argmax(actionProbs)
         '''
         if game.turn == -1:
             x, y = divmod(action, game.size)

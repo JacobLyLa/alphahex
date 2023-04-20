@@ -1,5 +1,7 @@
-import matplotlib.pyplot as plt
 from math import sqrt
+
+import matplotlib.pyplot as plt
+
 
 class Tournament:
     def __init__(self, game, players, boardSize=4, plot=False):

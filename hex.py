@@ -1,11 +1,14 @@
-import random
 import logging
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.patches import RegularPolygon
+import random
 from math import sqrt
-from game import Game
+
+import matplotlib.pyplot as plt
+import numpy as np
 import tensorflow as tf
+from matplotlib.patches import RegularPolygon
+
+from game import Game
+
 logging.basicConfig()
 # logging.getLogger().setLevel(logging.DEBUG)
 
@@ -48,7 +51,7 @@ class HexGame(Game):
         secondMap = np.where(self.board == -1, 1, 0)
         thirdMap = np.where(self.board == 0, 1, 0)
         fourthMap = np.ones(shape=self.board.shape) * self.turn
-        board = np.stack((firstMap, secondMap, thirdMap, fourthMap), axis=2)
+        board = np.stack((firstMap, secondMap, thirdMap, fourthMap), axis=0)
 
         '''
         board = self.board.copy()
@@ -58,8 +61,10 @@ class HexGame(Game):
             board = board.T * -1
             # print(f'board after: {board}')
         '''
+        # TODO: check that the representation is correct
 
-        tensor = tf.convert_to_tensor(np.array([board]).reshape(1, -1), dtype=tf.float32)
+        tensor = tf.convert_to_tensor(board, dtype=tf.float32)
+        tensor = tf.expand_dims(tensor, 0)
         return tensor
 
     def getActions(self):
@@ -205,6 +210,7 @@ class HexPlotter():
 if __name__ == '__main__':
     from player import RandomPlayer
     from tournament import Tournament
+    '''
     numPlayers = 3
     players = [RandomPlayer(f"Random{i}") for i in range(numPlayers)]
     tournament = Tournament(HexGame, players, boardSize=5, plot=True)
@@ -217,3 +223,7 @@ if __name__ == '__main__':
         plt.show()
     except KeyboardInterrupt:
         plt.close()
+    '''
+    game = HexGame(None, None, 4)
+    game.playAction(1)
+    print(game.getNNState())

@@ -104,7 +104,7 @@ class Mcts:
             actionDistNumpy = actionDistNumpy.reshape(game.size, game.size).T.reshape(-1)
         '''
 
-        self.replayBuffer.append([game.getNNState(), actionDistNumpy])
+        self.replayBuffer.append((game.getNNState(), actionDistNumpy))
         return actionNodes
 
     def rollout(self, gameCopy):
@@ -131,8 +131,8 @@ def backpropagate(node, reward):
         node = node.parentNode
 
 if __name__ == "__main__":
-    from player import RandomPlayer, MCTSPlayer
     from hex import HexGame
+    from player import MCTSPlayer, RandomPlayer
     from tournament import Tournament
 
     # fight mcts vs random player

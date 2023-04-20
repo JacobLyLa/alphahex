@@ -1,32 +1,38 @@
+import pickle
+import time
+
 import numpy as np
-from tensorflow.keras.layers import Dense
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.optimizers import Adam
 import tensorflow as tf
-from tensorflow.keras.layers import Dropout, BatchNormalization
-import numpy as np
-from tensorflow.keras.layers import Dense
+from keras.layers import (ELU, Activation, BatchNormalization, Conv2D, Dense,
+                          Dropout, Flatten, LeakyReLU, MaxPooling2D, Reshape)
+from keras.optimizers import SGD, Nadam, RMSprop
+from keras.regularizers import l2
+from keras.utils.generic_utils import get_custom_objects
+from tensorflow.keras.layers import (BatchNormalization, Dense, Dropout,
+                                     LeakyReLU)
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.optimizers import Adam
-import tensorflow as tf
-from tensorflow.keras.layers import Dropout, BatchNormalization
-from tensorflow.keras.layers import LeakyReLU
-from tensorflow.keras.layers import BatchNormalization
-from tensorflow.keras.optimizers import RMSprop
-from keras.layers import Conv2D, Flatten, Reshape, MaxPooling2D
+from tensorflow.keras.optimizers import Adam, RMSprop
+from tensorflow.keras.regularizers import l2
+
+
 
 def createModel(size):
-    input_shape = (size, size, 4)  # Assumes square images with 4 channels
+    input_shape = (4, size, size)
+    output_shape = size * size
+
     model = Sequential()
-    model.add(Reshape(input_shape, input_shape=(size*size*4,)))  # Reshape the flattened input data
-    model.add(Conv2D(size, kernel_size=(3, 3), activation='sigmoid'))
-    model.add(Dropout(0.2))
-    model.add(BatchNormalization())
+    model.add(Conv2D(16, kernel_size=(3, 3), padding='same', input_shape=input_shape, kernel_regularizer=l2(0.01)))
+    model.add(BatchNormalization(axis=-1))
+    model.add(Activation('relu'))
     model.add(Flatten())
-    model.add(Dense(size*size, activation='sigmoid'))
-    model.add(Dense(size*size, activation='softmax', kernel_initializer='he_uniform'))
-    model.compile(loss='categorical_crossentropy', optimizer=Adam(lr=0.005), metrics=['accuracy'])
+    model.add(Dropout(0.3))
+    model.add(Dense(64, activation='relu', kernel_regularizer=l2(0.01)))
+    model.add(Dense(output_shape, activation='softmax'))
+
+    model.compile(loss='categorical_crossentropy', optimizer=Adam(lr=0.001), metrics=['accuracy'])
+
     return model
+
 
 def loadModel(path):
     return tf.keras.models.load_model(path)

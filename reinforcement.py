@@ -1,14 +1,16 @@
 import pickle
-import numpy as np
-import matplotlib.pyplot as plt
-import time
 import random
+import time
 
-from tournament import Tournament
+import matplotlib.pyplot as plt
+import numpy as np
+import tensorflow as tf
+
 from hex import HexGame
 from mcts import Mcts
 from neuralnet import createModel, loadModel
 from player import MCTSPlayer, NeuralMCTSPlayer, NeuralNetPlayer, RandomPlayer
+from tournament import Tournament
 
 
 class ReinforcementLearner:
@@ -31,7 +33,9 @@ class ReinforcementLearner:
 
         # save this model as the best model
         self.saveModel(model, f'bestmodel.{self.boardSize}')
-        self.neuralPlayer = NeuralNetPlayer(model=self.model, argmax=True)
+        # this is for testing
+        self.neuralPlayer = NeuralNetPlayer(model=self.model, argmax=True) 
+        # this is for training
         self.neuralMctsPlayer = NeuralMCTSPlayer(model=self.model, epsilonMultiplier=epsilonMultiplier, maxIters=99999, maxTime=self.timePerMove, argmax=False)
         self.testModel()
 
@@ -70,21 +74,38 @@ class ReinforcementLearner:
 
     def trainMiniBatch(self):
         replayBuffer = self.neuralMctsPlayer.mcts.replayBuffer
-        X = np.array([x[0] for x in replayBuffer]).reshape(len(replayBuffer), -1)
-        y = np.array([x[1] for x in replayBuffer]).reshape(len(replayBuffer), -1)
-        for _ in range(2): # train on mini batch x times
-            if len(X) < self.miniBatchSize:
-                idx = np.random.choice(len(X), size=len(X), replace=False)
-            else:
-                idx = np.random.choice(len(X), size=self.miniBatchSize, replace=False)
-            X_mini = X[idx]
-            y_mini = y[idx]
-            self.model.fit(X_mini, y_mini, epochs=1, verbose=0)
+        miniSize = self.miniBatchSize
 
-        # test accuracy on full replay buffer
-        loss, acc = self.model.evaluate(X, y, verbose=0)
-        print("Accuracy on full replay buffer:", acc)
-        print("Loss on full replay buffer:", loss)
+        if len(replayBuffer) < miniSize:
+            miniSize = len(replayBuffer)
+
+        # Randomly select miniSize number of pairs from the replay buffer
+        miniBatch = random.sample(replayBuffer, miniSize)
+
+        # Separate the selected pairs into x and y arrays
+        x_data, y_data = [], []
+        for x, y in miniBatch:
+            x_data.append(tf.squeeze(x, axis=0))  # Remove the extra dimension
+            y_data.append(y)
+
+       # Convert x and y arrays to tensors
+        x_data = tf.stack(x_data, axis=0)  # Stack tensors along the batch axis
+        y_data = tf.convert_to_tensor(y_data, dtype=tf.float32)
+
+        # Train the model on one epoch using the mini-batch
+        self.model.train_on_batch(x_data, y_data)
+
+        # Evaluate the accuracy and loss for the entire replay buffer
+        x_buffer, y_buffer = [], []
+        for x, y in replayBuffer:
+            x_buffer.append(tf.squeeze(x, axis=0))
+            y_buffer.append(y)
+
+        x_buffer = tf.stack(x_buffer, axis=0)
+        y_buffer = tf.convert_to_tensor(y_buffer, dtype=tf.float32)
+
+        loss, accuracy = self.model.evaluate(x_buffer, y_buffer, verbose=0)
+        print(f"Replay buffer evaluation: Loss = {loss}, Accuracy = {accuracy}")
 
 
     def saveModel(self, model, modelName):
@@ -185,9 +206,9 @@ class ReinforcementLearner:
 def main():
     epsilonMultiplier = 0.997
     avgGameTime = 10
-    boardSize = 4
+    boardSize = 6
     saveInterval = 1
-    miniBatchSize = 16
+    miniBatchSize = 8
     replayBufferSize = boardSize*boardSize*50
 
     modelName = f'model.{boardSize}'
