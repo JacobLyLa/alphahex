@@ -17,10 +17,10 @@ from keras.layers import Conv2D, Flatten, Reshape, MaxPooling2D
 
 def createModel(size):
     model = Sequential()
-    model.add(Dense(size, input_dim=size*size+1, activation='relu'))
+    model.add(Dense(size, input_dim=size*size, activation='relu'))
     model.add(Dense(size*2, activation='sigmoid'))
     model.add(Dense(size*size, activation='softmax', kernel_initializer='he_uniform'))
-    
+
     model.compile(loss='categorical_crossentropy', optimizer='Adam', metrics=['accuracy'])
     return model
 

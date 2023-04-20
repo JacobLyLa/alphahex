@@ -62,11 +62,18 @@ class NeuralNetPlayer(Player):
         actionProbs = self.model(game.getNNState()).numpy()[0]
         legalActionsMask = np.zeros(len(actionProbs))
         for action in game.getActions():
+            if game.turn == -1:
+                x, y = divmod(action, game.size)
+                action = x + y * game.size
+
             legalActionsMask[action] = 1
         actionProbs = actionProbs * legalActionsMask
         action = np.argmax(actionProbs)
+        if game.turn == -1:
+            x, y = divmod(action, game.size)
+            action = x + y * game.size
         game.playAction(action)
-        
+
 def argmaxPolicy(actionNodes):
     return max(actionNodes, key=lambda node: node.visits).action
 
