@@ -83,7 +83,7 @@ class NeuralNetPlayer(Player):
             x, y = divmod(action, game.size)
             action = x + y * game.size
         '''
-        
+
         game.playAction(action)
 
 def argmaxPolicy(actionNodes):

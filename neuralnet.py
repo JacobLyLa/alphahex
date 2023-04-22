@@ -1,17 +1,10 @@
-import pickle
-import time
-
-import numpy as np
 import tensorflow as tf
-from keras.layers import (ELU, Activation, BatchNormalization, Conv2D, Dense,
-                          Dropout, Flatten, LeakyReLU, MaxPooling2D, Reshape)
-from keras.optimizers import SGD, Nadam, RMSprop
+from keras.layers import (Activation, BatchNormalization, Conv2D, Dense,
+                          Dropout, Flatten)
 from keras.regularizers import l2
-from keras.utils.generic_utils import get_custom_objects
-from tensorflow.keras.layers import (BatchNormalization, Dense, Dropout,
-                                     LeakyReLU)
+from tensorflow.keras.layers import BatchNormalization, Dense, Dropout
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.optimizers import Adam, RMSprop
+from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import l2
 
 

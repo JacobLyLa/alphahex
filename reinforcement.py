@@ -8,8 +8,8 @@ import tensorflow as tf
 
 from hex import HexGame
 from mcts import Mcts
-from neuralnet import createModel, loadModel
-from player import MCTSPlayer, NeuralMCTSPlayer, NeuralNetPlayer, RandomPlayer
+from neuralnet import createModel
+from player import NeuralMCTSPlayer, NeuralNetPlayer, RandomPlayer
 from tournament import Tournament
 
 
@@ -34,7 +34,7 @@ class ReinforcementLearner:
         # save this model as the best model
         self.saveModel(model, f'bestmodel.{self.boardSize}')
         # this is for testing
-        self.neuralPlayer = NeuralNetPlayer(model=self.model, argmax=True) 
+        self.neuralPlayer = NeuralNetPlayer(model=self.model, argmax=True)
         # this is for training
         self.neuralMctsPlayer = NeuralMCTSPlayer(model=self.model, epsilonMultiplier=epsilonMultiplier, maxIters=99999, maxTime=self.timePerMove, argmax=False)
         self.testModel()
@@ -134,7 +134,7 @@ class ReinforcementLearner:
         self.mctsWinrate.append(winrate)
         print(f"NeuralNet@{self.episodesDone} vs MCTS: {wins} wins, {losses} losses, {draws} draws")
         '''
-        
+
 
     def analyze(self):
         game = HexGame(None, None, size=self.boardSize)

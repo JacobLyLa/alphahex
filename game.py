@@ -40,7 +40,7 @@ class Game:
     # returns the current state of the game in a format that can be used by a neural network
     def getNNState(self):
         raise NotImplementedError
- 
+
     def getTurn(self):
         return self.turn
 
