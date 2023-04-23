@@ -6,7 +6,6 @@ from math import log, sqrt
 import numpy as np
 
 logging.basicConfig()
-# logging.getLogger().setLevel(logging.DEBUG)
 
 def randomRolloutPolicy(game):
     game.playAction(random.choice(game.getActions()))

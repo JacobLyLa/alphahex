@@ -8,8 +8,8 @@ import os
 
 from hex import HexGame
 from mcts import Mcts
-from neuralnet import createModel, loadModel
-from player import MCTSPlayer, NeuralMCTSPlayer, NeuralNetPlayer, RandomPlayer
+from neuralnet import createModel
+from player import NeuralMCTSPlayer, NeuralNetPlayer, RandomPlayer
 from tournament import Tournament
 
 
@@ -44,7 +44,7 @@ class ReinforcementLearner:
         print("Time per move:", self.timePerMove)
 
         # this is for testing
-        self.neuralPlayer = NeuralNetPlayer(model=self.model, argmax=True) 
+        self.neuralPlayer = NeuralNetPlayer(model=self.model, argmax=True)
         # this is for training
         self.neuralMctsPlayer = NeuralMCTSPlayer(model=self.model, epsilonMultiplier=epsilonMultiplier, maxIters=99999, maxTime=self.timePerMove, argmax=False)
 

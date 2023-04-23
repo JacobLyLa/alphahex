@@ -1,5 +1,4 @@
 import logging
-import random
 from math import sqrt
 
 import matplotlib.pyplot as plt

@@ -16,14 +16,15 @@ from tournament import Tournament
 
 
 class TournamentOfProgressivePolicies:
-    def __init__(self, boardSize: int, models: dict):
+    def __init__(self, boardSize: int, models: dict, plot=False):
         self.boardSize = boardSize
         self.models = models
         self.players = [NeuralNetPlayer(model, name=f'nn {iteration}', epsilon=0.05, argmax="Probs") for iteration, model in self.models.items()]
-        self.tournament = Tournament(HexGame, self.players, boardSize=self.boardSize, plot=False)
+        self.tournament = Tournament(HexGame, self.players, boardSize=self.boardSize, plot=plot)
 
     @classmethod
-    def FromTraining(cls, gameTime, iterations, numPolicies, boardSize, saveInterval, miniBatchSize):
+    def FromTraining(cls, gameTime, iterations, numPolicies, boardSize, saveInterval, miniBatchSize, plot=False):
+
         initialModel = createModel(size=boardSize)
         replayBufferSize = boardSize*boardSize*100
 
@@ -47,17 +48,17 @@ class TournamentOfProgressivePolicies:
             if iteration in tournamentIterations:
                 models[iteration] = tf.keras.models.clone_model(learner.model)
 
-        return cls(boardSize, models)
+        return cls(boardSize, models, plot=plot)
 
     @classmethod
-    def LoadTournament(cls, path):
+    def LoadTournament(cls, path, plot=False):
         path = Path(path)
         tournamentInfo = json.loads((path / 'tournamentInfo.json').read_text())
 
         boardSize = tournamentInfo['boardSize']
         models = {iteration: loadModel(path / f'model{iteration}', compile=False) for iteration in tournamentInfo['iterations']}
 
-        return cls(boardSize, models)
+        return cls(boardSize, models, plot=plot)
 
     def save(self, path):
         path = Path(path)
@@ -76,8 +77,8 @@ class TournamentOfProgressivePolicies:
         for iteration, model in self.models.items():
             model.save(path / f'model{iteration}')
 
-    def run(self):
-        self.tournament.run(10)
+    def run(self, tournamentRounds=1):
+        self.tournament.run(tournamentRounds)
         for player in self.players:
             result = self.tournament.getPlayerResults(player)
             print(f'{player.name}: wins {result[0]}, losses {result[1]}')
@@ -93,10 +94,12 @@ def main():
 
     parser.add_argument('--game_time', type=int, default=30, help='Average game time')
     parser.add_argument('--iterations', type=int, default=20, help='Number of iterations to train for')
-    parser.add_argument('--num_policies', type=int, default=10, help='Number of policies to train')
-    parser.add_argument('--board_size', type=int, default=3, help='Board size')
+    parser.add_argument('--num_policies', type=int, default=6, help='Number of policies to train')
+    parser.add_argument('--board_size', type=int, default=4, help='Board size')
     parser.add_argument('--save_interval', type=int, default=10, help='Save interval')
-    parser.add_argument('--mini_batch_size', type=int, default=16, help='Mini batch size')
+    parser.add_argument('--mini_batch_size', type=int, default=8, help='Mini batch size')
+    parser.add_argument('--tournament_rounds', type=int, default=10, help='Number of rounds to play in tournament')
+    parser.add_argument('--plot', action='store_true', help='Plot the tournament')
 
     args = parser.parse_args()
 
@@ -110,15 +113,16 @@ def main():
             boardSize=args.board_size,
             saveInterval=args.save_interval,
             miniBatchSize=args.mini_batch_size,
+            plot=args.plot
         )
         topp.save(path)
 
     if args.load:
         path = args.load
         print(f'Loading from {path}...')
-        topp = TournamentOfProgressivePolicies.LoadTournament(path)
+        topp = TournamentOfProgressivePolicies.LoadTournament(path, plot=args.plot)
 
-    topp.run()
+    topp.run(args.tournament_rounds)
     try:
         plt.show()
     except KeyboardInterrupt:
