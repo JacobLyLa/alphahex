@@ -84,7 +84,7 @@ def main():
 
     modelPath = Path(args.model)
     model = loadModel(modelPath)
-    player = NeuralNetPlayer(model)
+    player = NeuralNetPlayer(model, argmax=True)
 
     client = MyClient(player)
     client.run()
