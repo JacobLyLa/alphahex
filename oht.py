@@ -1,14 +1,18 @@
 from math import sqrt
 import numpy as np
+import argparse
+from pathlib import Path
 
 from client import ActorClient
-from player import RandomPlayer
+from player import Player, NeuralNetPlayer, NeuralMCTSPlayer
 from hex import HexGame
+from neuralnet import loadModel
 
 
 class MyClient(ActorClient):
-    def __init__(self):
+    def __init__(self, player: Player):
         super().__init__(qualify=False)
+        self.player = player
 
     def handle_series_start(self, unique_id, series_id, player_map, num_games, game_params):
         super().handle_series_start(unique_id, series_id, player_map, num_games, game_params)
@@ -17,7 +21,7 @@ class MyClient(ActorClient):
     def handle_game_start(self, start_player):
         super().handle_game_start(start_player)
         self.game = HexGame(
-            player1=RandomPlayer(name="Random"),
+            player1=self.player,
             player2=None,
             size=self.gameSize
         )
@@ -74,7 +78,15 @@ def stateToBoard(state):
 
 
 def main():
-    client = MyClient()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--model', type=str, required=True, help='Path to model')
+    args = parser.parse_args()
+
+    modelPath = Path(args.model)
+    model = loadModel(modelPath)
+    player = NeuralNetPlayer(model)
+
+    client = MyClient(player)
     client.run()
 
 
