@@ -22,7 +22,9 @@ class Tournament:
         for _ in range(games_per_permutation):
             for i, player1 in enumerate(self.players):
                 for j, player2 in enumerate(self.players):
-                    if player1 is player2:
+                    #if player1 is player2:
+                    #    continue
+                    if i == j:
                         continue
 
                     game = self.game(

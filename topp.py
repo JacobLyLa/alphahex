@@ -25,10 +25,11 @@ class TournamentOfProgressivePolicies:
     @classmethod
     def FromTraining(cls, gameTime, iterations, numPolicies, boardSize, saveInterval, miniBatchSize):
         initialModel = createModel(size=boardSize)
-        replayBufferSize = boardSize*boardSize*50
+        replayBufferSize = boardSize*boardSize*100
 
         learner = ReinforcementLearner(
-            epsilonMultiplier=0.99,
+            epochs=5,
+            epsilonMultiplier=0.999,
             avgGameTime=gameTime,
             saveInterval=saveInterval,
             miniBatchSize=miniBatchSize,
@@ -42,7 +43,6 @@ class TournamentOfProgressivePolicies:
 
         models = {}
         for iteration in range(iterations):
-            # print(f'Iteration {iteration}') already in reinforcement.py
             learner.oneIteration()
             if iteration in tournamentIterations:
                 models[iteration] = tf.keras.models.clone_model(learner.model)
@@ -55,7 +55,7 @@ class TournamentOfProgressivePolicies:
         tournamentInfo = json.loads((path / 'tournamentInfo.json').read_text())
 
         boardSize = tournamentInfo['boardSize']
-        models = {iteration: loadModel(path / f'model{iteration}') for iteration in tournamentInfo['iterations']}
+        models = {iteration: loadModel(path / f'model{iteration}', compile=False) for iteration in tournamentInfo['iterations']}
 
         return cls(boardSize, models)
 
@@ -77,7 +77,7 @@ class TournamentOfProgressivePolicies:
             model.save(path / f'model{iteration}')
 
     def run(self):
-        self.tournament.run(50)
+        self.tournament.run(10)
         for player in self.players:
             result = self.tournament.getPlayerResults(player)
             print(f'{player.name}: wins {result[0]}, losses {result[1]}')
@@ -93,10 +93,10 @@ def main():
 
     parser.add_argument('--game_time', type=int, default=30, help='Average game time')
     parser.add_argument('--iterations', type=int, default=20, help='Number of iterations to train for')
-    parser.add_argument('--num_policies', type=int, default=6, help='Number of policies to train')
+    parser.add_argument('--num_policies', type=int, default=10, help='Number of policies to train')
     parser.add_argument('--board_size', type=int, default=3, help='Board size')
     parser.add_argument('--save_interval', type=int, default=10, help='Save interval')
-    parser.add_argument('--mini_batch_size', type=int, default=8, help='Mini batch size')
+    parser.add_argument('--mini_batch_size', type=int, default=16, help='Mini batch size')
 
     args = parser.parse_args()
 

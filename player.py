@@ -50,7 +50,7 @@ class NeuralNetPlayer(Player):
         self.argmax = argmax
 
     def updateEpsilon(self):
-        print(f"Updating to {self.epsilon * self.epsilonMultiplier}")
+        print(f"Epsilon = {self.epsilon * self.epsilonMultiplier:.5f}")
         self.epsilon *= self.epsilonMultiplier
 
     def playAction(self, game):
@@ -65,24 +65,16 @@ class NeuralNetPlayer(Player):
         actionProbs = self.model(game.getNNState()).numpy()[0]
         legalActionsMask = np.zeros(len(actionProbs))
         for action in game.getActions():
-            '''
-            if game.turn == -1:
-                x, y = divmod(action, game.size)
-                action = x + y * game.size
-            '''
             legalActionsMask[action] = 1
         actionProbs = actionProbs * legalActionsMask
         actionProbs = actionProbs / np.sum(actionProbs)
 
         if self.argmax == "Probs":
+            actionProbs = np.power(actionProbs, 1)
+            actionProbs = actionProbs / np.sum(actionProbs)
             action = np.random.choice(len(actionProbs), p=actionProbs)
         else:
             action = np.argmax(actionProbs)
-        '''
-        if game.turn == -1:
-            x, y = divmod(action, game.size)
-            action = x + y * game.size
-        '''
         
         game.playAction(action)
 

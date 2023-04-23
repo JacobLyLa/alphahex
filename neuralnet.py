@@ -29,10 +29,10 @@ def createModel(size):
     model.add(Dense(64, activation='relu', kernel_regularizer=l2(0.01)))
     model.add(Dense(output_shape, activation='softmax'))
 
-    model.compile(loss='categorical_crossentropy', optimizer=Adam(lr=0.001), metrics=['accuracy'])
+    model.compile(loss='categorical_crossentropy', optimizer=Adam(learning_rate=0.001), metrics=['accuracy'])
 
     return model
 
 
-def loadModel(path):
-    return tf.keras.models.load_model(path)
+def loadModel(path, compile=True):
+    return tf.keras.models.load_model(path, compile=compile)

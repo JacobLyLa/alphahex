@@ -89,8 +89,9 @@ class Mcts:
             backpropagate(node, reward)
 
         actionNodes = sorted(self.root.childNodes, key=lambda c: c.visits)
-        # print how many iterations were done
-        print(iters, end=" ")
+        # print how many iterations was done if less than 50
+        if iters < 50:
+            print(iters, end=" ")
 
         # Create action distribution probabilities
         totalVisits = sum(node.visits for node in actionNodes)
@@ -98,11 +99,6 @@ class Mcts:
         actionDistNumpy = np.zeros(game.size * game.size)
         for action, prob in actionDist.items():
             actionDistNumpy[action] = prob
-
-        '''
-        if game.getTurn() == -1:
-            actionDistNumpy = actionDistNumpy.reshape(game.size, game.size).T.reshape(-1)
-        '''
 
         self.replayBuffer.append((game.getNNState(), actionDistNumpy))
         return actionNodes
@@ -129,30 +125,3 @@ def backpropagate(node, reward):
     while node != None:
         node.update(reward)
         node = node.parentNode
-
-if __name__ == "__main__":
-    from hex import HexGame
-    from player import MCTSPlayer, RandomPlayer
-    from tournament import Tournament
-
-    # fight mcts vs random player
-    boardSize = 5
-    numTournamentRounds = 1
-    players = [
-        MCTSPlayer(maxIters=500, maxTime=20),
-        RandomPlayer()
-    ]
-    tournament = Tournament(HexGame, players, boardSize=boardSize, plot=True)
-    tournament.run(numTournamentRounds)
-    tournament.printResults()
-
-    # fight mcts vs mcts with less iterations
-    boardSize = 5
-    numTournamentRounds = 1
-    players = [
-        MCTSPlayer(maxIters=500, maxTime=20, name="MCTS 500"),
-        MCTSPlayer(maxIters=100, maxTime=20, name="MCTS 100")
-    ]
-    tournament = Tournament(HexGame, players, boardSize=boardSize, plot=True)
-    tournament.run(numTournamentRounds)
-    tournament.printResults()
