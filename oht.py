@@ -1,17 +1,20 @@
 from math import sqrt
-import numpy as np
 import argparse
 from pathlib import Path
+from time import time, sleep
+
+import numpy as np
 
 from client import ActorClient
-from player import Player, NeuralNetPlayer, NeuralMCTSPlayer
+from player import Player, NeuralNetPlayer
 from hex import HexGame
 from neuralnet import loadModel
 
 
 class MyClient(ActorClient):
-    def __init__(self, player: Player):
-        super().__init__(qualify=False)
+    def __init__(self, player: Player, qualify=False):
+        assert not qualify, 'Just want to be sure that we are not qualifying by accident'
+        super().__init__(qualify=qualify)
         self.player = player
 
     def handle_series_start(self, unique_id, series_id, player_map, num_games, game_params):
@@ -36,7 +39,11 @@ class MyClient(ActorClient):
         if start_player == 2:
             self.game.turn = -1
 
+        self.lastActionDone = time()
+
     def handle_get_action(self, state):
+        print(f'Opponent took {time() - self.lastActionDone:.2f}s')
+        start = time()
         assert state[0] == 1, 'Only support for local player playing as player 1'
 
         board = stateToBoard(state)
@@ -48,6 +55,8 @@ class MyClient(ActorClient):
         self.game.player1.playAction(self.game)
         action = actionFromBoardDiff(self.game.board, self.lastBoard)
         self.lastBoard = self.game.board.copy()
+        print(f'Chose action: {action} ({time() - start:.2f}s)')
+        self.lastActionDone = time()
         return action
 
     def handle_game_end(self, result):
@@ -80,13 +89,14 @@ def stateToBoard(state):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', type=str, required=True, help='Path to model')
+    parser.add_argument('--qualify', action='store_true', help='Run in qualification mode')
     args = parser.parse_args()
 
     modelPath = Path(args.model)
     model = loadModel(modelPath)
     player = NeuralNetPlayer(model, argmax=True)
 
-    client = MyClient(player)
+    client = MyClient(player, qualify=args.qualify)
     client.run()
 
 
